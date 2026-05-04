@@ -465,8 +465,43 @@ nav{background:var(--soil);padding:0 16px;display:flex;align-items:center;positi
 .comm-title{font-family:'Fraunces',serif;font-size:15px;font-weight:600;color:var(--soil);margin-bottom:5px;line-height:1.3}
 .comm-text{font-size:13px;color:var(--text-mid);line-height:1.5;margin-bottom:8px}
 .comm-actions{display:flex;gap:14px;font-size:11px;color:var(--text-soft);padding-top:8px;border-top:1px solid var(--stone)}
-.comm-action{cursor:pointer;display:flex;align-items:center;gap:5px;transition:color .12s}
+.comm-action{cursor:pointer;display:flex;align-items:center;gap:5px;transition:color .12s;background:none;border:none;font-family:'DM Sans',sans-serif;font-size:11px;color:var(--text-soft);padding:0}
 .comm-action:hover{color:var(--leaf)}
+.comm-action.liked{color:#e74c3c;font-weight:600}
+.comm-action.liked:hover{color:#c0392b}
+.comm-post.demo{position:relative;background:#fdfcf7}
+.comm-post.demo::after{content:'DÉMO';position:absolute;top:10px;right:14px;background:var(--gold-light);color:var(--gold);font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:.04em}
+.comm-theme-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+.comm-theme-title{font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--soil)}
+
+.comm-new-post{background:white;border-radius:14px;border:1px solid rgba(200,191,176,.4);padding:16px 18px;margin-bottom:16px;box-shadow:0 2px 8px rgba(30,18,8,.04)}
+.comm-new-post h4{font-family:'Fraunces',serif;font-size:15px;font-weight:600;color:var(--soil);margin-bottom:10px}
+.comm-new-post input,.comm-new-post textarea{width:100%;padding:10px 12px;border:1.5px solid var(--stone-dark);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;transition:border-color .15s;margin-bottom:10px;background:white;color:var(--text);box-sizing:border-box}
+.comm-new-post input:focus,.comm-new-post textarea:focus{border-color:var(--leaf)}
+.comm-new-post textarea{resize:vertical;min-height:80px;line-height:1.5}
+.comm-new-post-actions{display:flex;gap:8px;justify-content:flex-end}
+
+.post-detail{background:white;border-radius:14px;border:1px solid rgba(200,191,176,.4);padding:18px 20px;margin-bottom:14px;box-shadow:0 2px 8px rgba(30,18,8,.04)}
+.post-detail-meta{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-soft);margin-bottom:8px;flex-wrap:wrap}
+.post-detail-title{font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--soil);line-height:1.3;margin-bottom:8px}
+.post-detail-body{font-size:14px;color:var(--text-mid);line-height:1.6;margin-bottom:12px;white-space:pre-wrap;word-wrap:break-word}
+.post-detail-actions{display:flex;gap:14px;padding-top:10px;border-top:1px solid var(--stone)}
+
+.reply-list{display:flex;flex-direction:column;gap:10px;margin-top:8px;margin-bottom:14px}
+.reply-card{background:var(--cream);border-radius:12px;padding:12px 14px;display:flex;gap:10px}
+.reply-avatar{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white}
+.reply-content{flex:1;min-width:0}
+.reply-meta{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-soft);margin-bottom:4px}
+.reply-author{color:var(--soil);font-weight:600}
+.reply-author.you{color:var(--leaf)}
+.reply-body{font-size:13px;color:var(--text-mid);line-height:1.5;white-space:pre-wrap;word-wrap:break-word}
+.reply-actions{margin-top:6px;display:flex;gap:10px;font-size:11px}
+
+.reply-form{background:white;border:1.5px solid var(--stone-dark);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.reply-form textarea{width:100%;border:none;outline:none;font-family:'DM Sans',sans-serif;font-size:13px;resize:vertical;min-height:60px;line-height:1.5;background:transparent;color:var(--text)}
+.reply-form-actions{display:flex;gap:8px;justify-content:flex-end}
+
+.comm-loading{text-align:center;padding:32px;color:var(--text-soft);font-size:13px}
 /* Harvest */
 .harvest-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
 .year-tabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap}
@@ -1189,16 +1224,25 @@ function renderDashboard(){
   renderDashCommunity();
 }
 
-function renderDashCommunity(){
+async function renderDashCommunity(){
   const c=document.getElementById('dash-community');
   if(!c) return;
-  // Show 3 latest posts, sorted by time
-  const latest=[...COMM_POSTS].sort((a,b)=>b.time-a.time).slice(0,3);
+  c.innerHTML='<div style="padding:24px;text-align:center;color:var(--text-soft);font-size:12px">Chargement...</div>';
+  let realPosts=[];
+  try{
+    const {data}=await sb.from('community_posts').select('*').order('created_at',{ascending:false}).limit(3);
+    realPosts=(data||[]).map(postFromDb);
+  }catch(e){console.error(e)}
+  const demoForFill=DEMO_POSTS.map(p=>({...p,is_demo:true})).sort((a,b)=>b.time-a.time);
+  const combined=[...realPosts,...demoForFill].slice(0,3);
   let html='<div style="background:white;border-radius:14px;border:1px solid rgba(200,191,176,.4);overflow:hidden">';
-  latest.forEach((p,i)=>{
-    const initials=p.author.split(' ').map(s=>s[0]).join('');
+  combined.forEach((p,i)=>{
+    const initials=p.author.split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase();
     const theme=COMM_THEMES.find(t=>t.key===p.theme);
-    html+='<div class="comm-post" style="border-radius:0;border:none;border-bottom:'+(i<latest.length-1?'1px solid var(--stone)':'none')+';box-shadow:none;cursor:pointer" onclick="commOpenTheme(\''+p.theme+'\');showPage(\'communaute\')"><div class="comm-avatar" style="background:'+p.avatar+'">'+initials+'</div><div class="comm-content"><div class="comm-meta"><span class="comm-author">'+p.author+'</span><span class="comm-theme" style="padding:1px 7px;border-radius:5px;font-size:10px;font-weight:500;background:var(--leaf-pale);color:var(--leaf)">'+(theme?theme.icon+' '+theme.name:'')+'</span><span>'+fmtTime(p.time)+'</span></div><div class="comm-title">'+p.title+'</div></div></div>';
+    const onclick=p.is_demo?
+      "commOpenTheme('"+p.theme+"');showPage('communaute')" :
+      "commOpenPost('"+p.id+"');showPage('communaute')";
+    html+='<div class="comm-post" style="border-radius:0;border:none;border-bottom:'+(i<combined.length-1?'1px solid var(--stone)':'none')+';box-shadow:none;cursor:pointer" onclick="'+onclick+'"><div class="comm-avatar" style="background:'+p.avatar+'">'+initials+'</div><div class="comm-content"><div class="comm-meta"><span class="comm-author">'+escapeHtml(p.author)+'</span><span class="comm-theme" style="padding:1px 7px;border-radius:5px;font-size:10px;font-weight:500;background:var(--leaf-pale);color:var(--leaf)">'+(theme?theme.icon+' '+theme.name:'')+'</span><span>'+fmtTime(p.time)+'</span>'+(p.is_demo?'<span style="background:var(--gold-light);color:var(--gold);font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;letter-spacing:.04em">DÉMO</span>':'')+'</div><div class="comm-title">'+escapeHtml(p.title)+'</div></div></div>';
   });
   html+='</div>';
   c.innerHTML=html;
@@ -1848,44 +1892,311 @@ const COMM_THEMES=[
   {key:'maladies',name:'Maladies & ravageurs',icon:'🐛',desc:'Mildiou, pucerons, traitements bio',cls:'maladies'},
   {key:'questions',name:'Questions',icon:'❓',desc:'Tout ce qui ne rentre pas ailleurs',cls:'questions'}
 ];
-const COMM_POSTS=[
-  {id:'p1',theme:'semis',author:'Marie L.',avatar:'#e74c3c',title:'Mes premiers semis de tomates Cœur de bœuf',text:"Première fois que je teste cette variété. J'ai semé il y a 3 semaines en godet et ça lève super bien ! Quelqu'un a des conseils pour le rempotage ? Je sais qu'il faut attendre la fin des gelées mais j'ai peur qu'ils s'étirent trop.",time:Date.now()-3*3600*1000,likes:12,replies:5},
-  {id:'p2',theme:'plans',author:'Pierre T.',avatar:'#3498db',title:"Plan d'un potager 4×3m optimisé sur 4 ans",text:"Je partage mon plan pour cette année avec rotation des cultures sur 4 ans. Les associations marchent du tonnerre : tomates+basilic+œillets d'Inde, et les haricots qui apportent l'azote pour les choux l'année suivante.",time:Date.now()-12*3600*1000,likes:34,replies:18},
-  {id:'p3',theme:'aromatiques',author:'Sophie D.',avatar:'#27ae60',title:'Comment garder son basilic vivant en hiver ?',text:"J'ai rentré mes pieds de basilic mais ils se flétrissent au bout de 3 semaines. Lumière artificielle ? Quelle température minimum ? Quelqu'un arrive vraiment à le garder jusqu'au printemps ?",time:Date.now()-26*3600*1000,likes:8,replies:11},
-  {id:'p4',theme:'maladies',author:'Lucas M.',avatar:'#f39c12',title:'Mildiou sur mes tomates — comment réagir ?',text:"Première année que ça m'arrive après cet été humide. Comment sauver le reste de ma récolte ? Bouillie bordelaise ou alternatives bio ? Et surtout comment éviter ça l'an prochain ?",time:Date.now()-50*3600*1000,likes:5,replies:14},
-  {id:'p5',theme:'racines',author:'Camille B.',avatar:'#8e44ad',title:'Carottes qui fourchent — pourquoi ?',text:"Mes carottes nantaises font toutes des racines fourchues cette année. Sol trop caillouteux ? Ou problème d'arrosage ? Conseils bienvenus pour la prochaine saison !",time:Date.now()-72*3600*1000,likes:9,replies:7},
-  {id:'p6',theme:'fleurs',author:'Antoine P.',avatar:'#16a085',title:'Œillets d\'Inde et capucines : ça marche vraiment ?',text:"On en parle partout pour éloigner les pucerons et nématodes. Cette année j'ai testé et… verdict mitigé. Vos retours d'expérience ?",time:Date.now()-96*3600*1000,likes:15,replies:9},
-  {id:'p7',theme:'legumes',author:'Julie M.',avatar:'#d35400',title:'Courgettes : 2 plants, c\'est trop ?',text:"On m'avait dit 1 plant suffit pour une famille de 4. J'en ai mis 2 et je suis débordée ! Quelqu'un a un calcul plus juste selon le nombre de personnes ?",time:Date.now()-120*3600*1000,likes:22,replies:13},
-  {id:'p8',theme:'questions',author:'Thomas R.',avatar:'#2980b9',title:'Quel paillage pour un potager urbain ?',text:"Pas accès à du foin/BRF facilement. Que conseillez-vous : cosses de cacao, paille de lin, copeaux de bois, ou autre ? Le tout en restant raisonnable côté budget.",time:Date.now()-150*3600*1000,likes:6,replies:8}
-];
-let commCurrentTheme=null;
+// Posts seed en lecture seule (visibles tant que la vraie communauté n'a pas démarré)
+const DEMO_POSTS=[
+  {id:'demo-p1',theme:'semis',author:'Marie L.',avatar:'#e74c3c',title:'Mes premiers semis de tomates Cœur de bœuf',body:"Première fois que je teste cette variété. J'ai semé il y a 3 semaines en godet et ça lève super bien ! Quelqu'un a des conseils pour le rempotage ? Je sais qu'il faut attendre la fin des gelées mais j'ai peur qu'ils s'étirent trop.",time:Date.now()-3*3600*1000,likes:12,replies:5},
+  {id:'demo-p2',theme:'plans',author:'Pierre T.',avatar:'#3498db',title:"Plan d'un potager 4×3m optimisé sur 4 ans",body:"Je partage mon plan pour cette année avec rotation des cultures sur 4 ans. Les associations marchent du tonnerre : tomates+basilic+œillets d'Inde, et les haricots qui apportent l'azote pour les choux l'année suivante.",time:Date.now()-12*3600*1000,likes:34,replies:18},
+  {id:'demo-p3',theme:'aromatiques',author:'Sophie D.',avatar:'#27ae60',title:'Comment garder son basilic vivant en hiver ?',body:"J'ai rentré mes pieds de basilic mais ils se flétrissent au bout de 3 semaines. Lumière artificielle ? Quelle température minimum ? Quelqu'un arrive vraiment à le garder jusqu'au printemps ?",time:Date.now()-26*3600*1000,likes:8,replies:11},
+  {id:'demo-p4',theme:'maladies',author:'Lucas M.',avatar:'#f39c12',title:'Mildiou sur mes tomates — comment réagir ?',body:"Première année que ça m'arrive après cet été humide. Comment sauver le reste de ma récolte ? Bouillie bordelaise ou alternatives bio ? Et surtout comment éviter ça l'an prochain ?",time:Date.now()-50*3600*1000,likes:5,replies:14},
+  {id:'demo-p5',theme:'racines',author:'Camille B.',avatar:'#8e44ad',title:'Carottes qui fourchent — pourquoi ?',body:"Mes carottes nantaises font toutes des racines fourchues cette année. Sol trop caillouteux ? Ou problème d'arrosage ? Conseils bienvenus pour la prochaine saison !",time:Date.now()-72*3600*1000,likes:9,replies:7},
+  {id:'demo-p6',theme:'fleurs',author:'Antoine P.',avatar:'#16a085',title:"Œillets d'Inde et capucines : ça marche vraiment ?",body:"On en parle partout pour éloigner les pucerons et nématodes. Cette année j'ai testé et… verdict mitigé. Vos retours d'expérience ?",time:Date.now()-96*3600*1000,likes:15,replies:9},
+  {id:'demo-p7',theme:'legumes',author:'Julie M.',avatar:'#d35400',title:"Courgettes : 2 plants, c'est trop ?",body:"On m'avait dit 1 plant suffit pour une famille de 4. J'en ai mis 2 et je suis débordée ! Quelqu'un a un calcul plus juste selon le nombre de personnes ?",time:Date.now()-120*3600*1000,likes:22,replies:13},
+  {id:'demo-p8',theme:'questions',author:'Thomas R.',avatar:'#2980b9',title:'Quel paillage pour un potager urbain ?',body:"Pas accès à du foin/BRF facilement. Que conseillez-vous : cosses de cacao, paille de lin, copeaux de bois, ou autre ? Le tout en restant raisonnable côté budget.",time:Date.now()-150*3600*1000,likes:6,replies:8}
+].map(p=>({...p,is_demo:true}));
 
-function renderCommunity(){
+// Old alias for backward compat with dashboard widget
+const COMM_POSTS=DEMO_POSTS.map(p=>({id:p.id,theme:p.theme,author:p.author,avatar:p.avatar,title:p.title,text:p.body,time:p.time,likes:p.likes,replies:p.replies}));
+
+// Comm state
+let commView='themes'; // themes | theme | post
+let commCurrentTheme=null;
+let commCurrentPost=null;
+let commPosts=[]; // real posts from DB for current theme
+let commReplies=[]; // replies for current post
+let commLikedPostIds=new Set();
+let commLikedReplyIds=new Set();
+let commLoading=false;
+let commPostCounts={}; // { theme: count } for theme grid
+let commCounts={demo:8,real:0}; // for total counts on themes
+
+function avatarFromName(name){
+  const colors=['#e74c3c','#3498db','#27ae60','#f39c12','#8e44ad','#16a085','#d35400','#2980b9','#c0392b','#1abc9c'];
+  let h=0;for(let i=0;i<name.length;i++)h=(h*31+name.charCodeAt(i))>>>0;
+  return colors[h%colors.length];
+}
+
+function postFromDb(r){
+  return {id:r.id,user_id:r.user_id,theme:r.theme,author:r.author_name,avatar:r.avatar_color||avatarFromName(r.author_name),title:r.title,body:r.body,time:new Date(r.created_at).getTime(),likes:r.likes_count||0,is_demo:false};
+}
+function replyFromDb(r){
+  return {id:r.id,user_id:r.user_id,post_id:r.post_id,author:r.author_name,avatar:r.avatar_color||avatarFromName(r.author_name),body:r.body,time:new Date(r.created_at).getTime(),likes:r.likes_count||0};
+}
+
+async function loadCommPostCounts(){
+  // Count real posts per theme
+  try{
+    const {data,error}=await sb.from('community_posts').select('theme');
+    if(error) throw error;
+    const counts={};
+    (data||[]).forEach(r=>{counts[r.theme]=(counts[r.theme]||0)+1});
+    commPostCounts=counts;
+  }catch(e){console.error(e);commPostCounts={}}
+}
+
+async function loadCommPostsForTheme(theme){
+  commLoading=true;
+  try{
+    const {data,error}=await sb.from('community_posts').select('*').eq('theme',theme).order('created_at',{ascending:false});
+    if(error) throw error;
+    commPosts=(data||[]).map(postFromDb);
+    // Load my likes on these posts
+    if(commPosts.length){
+      const ids=commPosts.map(p=>p.id);
+      const {data:likes}=await sb.from('community_likes').select('post_id').eq('user_id',currentUser.id).in('post_id',ids);
+      commLikedPostIds=new Set((likes||[]).map(l=>l.post_id));
+    } else commLikedPostIds=new Set();
+  }catch(e){console.error(e);commPosts=[]}
+  commLoading=false;
+}
+
+async function loadCommPostDetail(postId){
+  commLoading=true;
+  try{
+    const {data:post,error:e1}=await sb.from('community_posts').select('*').eq('id',postId).single();
+    if(e1) throw e1;
+    commCurrentPost=postFromDb(post);
+    const {data:replies,error:e2}=await sb.from('community_replies').select('*').eq('post_id',postId).order('created_at',{ascending:true});
+    if(e2) throw e2;
+    commReplies=(replies||[]).map(replyFromDb);
+    // My likes
+    const replyIds=commReplies.map(r=>r.id);
+    const {data:postLike}=await sb.from('community_likes').select('post_id').eq('user_id',currentUser.id).eq('post_id',postId).maybeSingle();
+    commLikedPostIds=new Set(postLike?[postLike.post_id]:[]);
+    if(replyIds.length){
+      const {data:replyLikes}=await sb.from('community_likes').select('reply_id').eq('user_id',currentUser.id).in('reply_id',replyIds);
+      commLikedReplyIds=new Set((replyLikes||[]).map(l=>l.reply_id));
+    } else commLikedReplyIds=new Set();
+  }catch(e){console.error(e);commCurrentPost=null;commReplies=[]}
+  commLoading=false;
+}
+
+async function createCommPost(theme,title,body){
+  try{
+    const {data,error}=await sb.from('community_posts').insert({user_id:currentUser.id,author_name:currentUser.name,avatar_color:avatarFromName(currentUser.name),theme,title,body}).select().single();
+    if(error) throw error;
+    return postFromDb(data);
+  }catch(e){console.error(e);alert('Erreur création post : '+e.message);return null}
+}
+async function createCommReply(postId,body){
+  try{
+    const {data,error}=await sb.from('community_replies').insert({post_id:postId,user_id:currentUser.id,author_name:currentUser.name,avatar_color:avatarFromName(currentUser.name),body}).select().single();
+    if(error) throw error;
+    return replyFromDb(data);
+  }catch(e){console.error(e);alert('Erreur réponse : '+e.message);return null}
+}
+async function deleteCommPost(postId){
+  try{
+    const {error}=await sb.from('community_posts').delete().eq('id',postId);
+    if(error) throw error;return true;
+  }catch(e){console.error(e);alert('Erreur suppression : '+e.message);return false}
+}
+async function deleteCommReply(replyId){
+  try{
+    const {error}=await sb.from('community_replies').delete().eq('id',replyId);
+    if(error) throw error;return true;
+  }catch(e){console.error(e);return false}
+}
+async function togglePostLike(postId){
+  const liked=commLikedPostIds.has(postId);
+  if(liked){
+    commLikedPostIds.delete(postId);
+    const post=commPosts.find(p=>p.id===postId)||commCurrentPost;
+    if(post) post.likes=Math.max(0,post.likes-1);
+    await sb.from('community_likes').delete().eq('user_id',currentUser.id).eq('post_id',postId);
+  } else {
+    commLikedPostIds.add(postId);
+    const post=commPosts.find(p=>p.id===postId)||commCurrentPost;
+    if(post) post.likes+=1;
+    await sb.from('community_likes').insert({user_id:currentUser.id,post_id:postId});
+  }
+  renderCommunity();
+}
+async function toggleReplyLike(replyId){
+  const liked=commLikedReplyIds.has(replyId);
+  if(liked){
+    commLikedReplyIds.delete(replyId);
+    const r=commReplies.find(r=>r.id===replyId);if(r) r.likes=Math.max(0,r.likes-1);
+    await sb.from('community_likes').delete().eq('user_id',currentUser.id).eq('reply_id',replyId);
+  } else {
+    commLikedReplyIds.add(replyId);
+    const r=commReplies.find(r=>r.id===replyId);if(r) r.likes+=1;
+    await sb.from('community_likes').insert({user_id:currentUser.id,reply_id:replyId});
+  }
+  renderCommunity();
+}
+
+// Demo post like fallback (just visual, in-memory toggle)
+function toggleDemoLike(postId){
+  const p=DEMO_POSTS.find(x=>x.id===postId);if(!p)return;
+  if(commLikedPostIds.has(postId)){commLikedPostIds.delete(postId);p.likes=Math.max(0,p.likes-1)}
+  else {commLikedPostIds.add(postId);p.likes+=1}
+  renderCommunity();
+}
+
+// Renders
+async function renderCommunity(){
   const c=document.getElementById('comm-view');
-  if(!commCurrentTheme){
+  if(!c) return;
+  if(commView==='themes'){
+    if(Object.keys(commPostCounts).length===0) await loadCommPostCounts();
     let html='<div class="comm-themes">';
     COMM_THEMES.forEach(t=>{
-      const count=COMM_POSTS.filter(p=>p.theme===t.key).length;
-      html+='<div class="comm-theme '+t.cls+'" onclick="commOpenTheme(\''+t.key+'\')"><div class="comm-theme-emoji">'+t.icon+'</div><div class="comm-theme-name">'+t.name+'</div><div class="comm-theme-desc">'+t.desc+'</div><div class="comm-theme-count">'+count+' post'+(count>1?'s':'')+'</div></div>';
+      const realCount=commPostCounts[t.key]||0;
+      const demoCount=DEMO_POSTS.filter(p=>p.theme===t.key).length;
+      const total=realCount+demoCount;
+      html+='<div class="comm-theme '+t.cls+'" onclick="commOpenTheme(\''+t.key+'\')"><div class="comm-theme-emoji">'+t.icon+'</div><div class="comm-theme-name">'+t.name+'</div><div class="comm-theme-desc">'+t.desc+'</div><div class="comm-theme-count">'+total+' post'+(total>1?'s':'')+(realCount?' · '+realCount+' actif'+(realCount>1?'s':''):'')+'</div></div>';
     });
     html+='</div>';
     c.innerHTML=html;
     return;
   }
-  const theme=COMM_THEMES.find(t=>t.key===commCurrentTheme);
-  const posts=COMM_POSTS.filter(p=>p.theme===commCurrentTheme);
-  let html='<div class="comm-back" onclick="commOpenTheme(null)">← Retour aux thèmes</div>';
-  html+='<div style="font-family:\'Fraunces\',serif;font-size:20px;font-weight:600;color:var(--soil);margin-bottom:14px">'+theme.icon+' '+theme.name+'</div>';
-  if(!posts.length){html+='<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-text">Pas encore de post sur ce thème</div></div>';c.innerHTML=html;return}
-  html+='<div class="comm-posts">';
-  posts.forEach(p=>{
-    const initials=p.author.split(' ').map(s=>s[0]).join('');
-    html+='<div class="comm-post"><div class="comm-avatar" style="background:'+p.avatar+'">'+initials+'</div><div class="comm-content"><div class="comm-meta"><span class="comm-author">'+p.author+'</span>·<span>'+fmtTime(p.time)+'</span></div><div class="comm-title">'+p.title+'</div><div class="comm-text">'+p.text+'</div><div class="comm-actions"><span class="comm-action">👍 '+p.likes+'</span><span class="comm-action">💬 '+p.replies+' réponses</span><span class="comm-action">↗ Partager</span></div></div></div>';
-  });
-  html+='</div>';
-  c.innerHTML=html;
+  if(commView==='theme'){
+    const theme=COMM_THEMES.find(t=>t.key===commCurrentTheme);
+    let html='<div class="comm-back" onclick="commBackToThemes()">← Retour aux thèmes</div>';
+    html+='<div class="comm-theme-bar"><div class="comm-theme-title">'+theme.icon+' '+theme.name+'</div><button class="btn btn-primary btn-sm" onclick="commToggleNewPost()">+ Nouveau post</button></div>';
+    if(document.getElementById('new-post-form-open')==null && commNewPostOpen){
+      // form will be injected below
+    }
+    if(commNewPostOpen){
+      html+='<div class="comm-new-post" id="new-post-form-open"><h4>Nouveau post dans '+theme.name+'</h4><input type="text" id="new-post-title" placeholder="Titre clair de ton post" maxlength="120"><textarea id="new-post-body" placeholder="Décris ta question, ton retour, ton astuce..." maxlength="2000"></textarea><div class="comm-new-post-actions"><button class="btn btn-outline btn-sm" onclick="commToggleNewPost()">Annuler</button><button class="btn btn-primary btn-sm" onclick="commSubmitNewPost()">Publier</button></div></div>';
+    }
+
+    if(commLoading){html+='<div class="comm-loading">Chargement...</div>';c.innerHTML=html;return}
+
+    const realPosts=commPosts;
+    const demoPosts=DEMO_POSTS.filter(p=>p.theme===commCurrentTheme);
+    if(realPosts.length===0 && demoPosts.length===0){
+      html+='<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-text">Pas encore de post sur ce thème.<br>Sois le premier à lancer la discussion !</div></div>';
+      c.innerHTML=html;return;
+    }
+    html+='<div class="comm-posts">';
+    // Real posts first
+    realPosts.forEach(p=>{
+      const initials=p.author.split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase();
+      const liked=commLikedPostIds.has(p.id);
+      const isMine=p.user_id===currentUser.id;
+      html+='<div class="comm-post" style="cursor:pointer" onclick="commOpenPost(\''+p.id+'\')"><div class="comm-avatar" style="background:'+p.avatar+'">'+initials+'</div><div class="comm-content"><div class="comm-meta"><span class="comm-author">'+escapeHtml(p.author)+(isMine?' (toi)':'')+'</span>·<span>'+fmtTime(p.time)+'</span></div><div class="comm-title">'+escapeHtml(p.title)+'</div><div class="comm-text">'+escapeHtml(p.body)+'</div><div class="comm-actions"><button class="comm-action '+(liked?'liked':'')+'" onclick="event.stopPropagation();togglePostLike(\''+p.id+'\')">'+(liked?'❤️':'🤍')+' '+p.likes+'</button><span class="comm-action">💬 Lire / répondre</span>'+(isMine?'<button class="comm-action" onclick="event.stopPropagation();commDeletePost(\''+p.id+'\')">🗑 Supprimer</button>':'')+'</div></div></div>';
+    });
+    // Demo posts (read-only)
+    demoPosts.forEach(p=>{
+      const initials=p.author.split(' ').map(s=>s[0]).join('');
+      const liked=commLikedPostIds.has(p.id);
+      html+='<div class="comm-post demo"><div class="comm-avatar" style="background:'+p.avatar+'">'+initials+'</div><div class="comm-content"><div class="comm-meta"><span class="comm-author">'+p.author+'</span>·<span>'+fmtTime(p.time)+'</span></div><div class="comm-title">'+p.title+'</div><div class="comm-text">'+p.body+'</div><div class="comm-actions"><button class="comm-action '+(liked?'liked':'')+'" onclick="toggleDemoLike(\''+p.id+'\')">'+(liked?'❤️':'🤍')+' '+p.likes+'</button><span class="comm-action" style="opacity:.5">💬 '+p.replies+' réponses (démo)</span></div></div></div>';
+    });
+    html+='</div>';
+    c.innerHTML=html;
+    if(commNewPostOpen){setTimeout(()=>document.getElementById('new-post-title')?.focus(),50)}
+    return;
+  }
+  if(commView==='post'){
+    let html='<div class="comm-back" onclick="commBackToTheme()">← Retour au thème</div>';
+    if(commLoading){html+='<div class="comm-loading">Chargement...</div>';c.innerHTML=html;return}
+    if(!commCurrentPost){html+='<div class="empty-state"><div class="empty-text">Post introuvable.</div></div>';c.innerHTML=html;return}
+    const p=commCurrentPost;
+    const initials=p.author.split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase();
+    const liked=commLikedPostIds.has(p.id);
+    const isMine=p.user_id===currentUser.id;
+    html+='<div class="post-detail">';
+    html+='<div style="display:flex;gap:12px;align-items:flex-start"><div class="comm-avatar" style="background:'+p.avatar+'">'+initials+'</div><div style="flex:1;min-width:0">';
+    html+='<div class="post-detail-meta"><span class="comm-author">'+escapeHtml(p.author)+(isMine?' (toi)':'')+'</span>·<span>'+fmtTime(p.time)+'</span></div>';
+    html+='<div class="post-detail-title">'+escapeHtml(p.title)+'</div>';
+    html+='<div class="post-detail-body">'+escapeHtml(p.body)+'</div>';
+    html+='<div class="post-detail-actions"><button class="comm-action '+(liked?'liked':'')+'" onclick="togglePostLike(\''+p.id+'\')">'+(liked?'❤️':'🤍')+' '+p.likes+'</button><span class="comm-action">💬 '+commReplies.length+' réponse'+(commReplies.length>1?'s':'')+'</span>'+(isMine?'<button class="comm-action" onclick="commDeletePost(\''+p.id+'\')">🗑 Supprimer</button>':'')+'</div>';
+    html+='</div></div></div>';
+
+    // Replies
+    if(commReplies.length){
+      html+='<div class="reply-list">';
+      commReplies.forEach(r=>{
+        const ri=r.author.split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase();
+        const rl=commLikedReplyIds.has(r.id);
+        const isMineR=r.user_id===currentUser.id;
+        html+='<div class="reply-card"><div class="reply-avatar" style="background:'+r.avatar+'">'+ri+'</div><div class="reply-content"><div class="reply-meta"><span class="reply-author '+(isMineR?'you':'')+'">'+escapeHtml(r.author)+(isMineR?' (toi)':'')+'</span>·<span>'+fmtTime(r.time)+'</span></div><div class="reply-body">'+escapeHtml(r.body)+'</div><div class="reply-actions"><button class="comm-action '+(rl?'liked':'')+'" onclick="toggleReplyLike(\''+r.id+'\')">'+(rl?'❤️':'🤍')+' '+r.likes+'</button>'+(isMineR?'<button class="comm-action" onclick="commDeleteReply(\''+r.id+'\')">🗑 Supprimer</button>':'')+'</div></div></div>';
+      });
+      html+='</div>';
+    }
+    // Reply form
+    html+='<div class="reply-form"><textarea id="reply-input" placeholder="Écris ta réponse..." maxlength="2000"></textarea><div class="reply-form-actions"><button class="btn btn-primary btn-sm" onclick="commSubmitReply()">Publier la réponse</button></div></div>';
+    c.innerHTML=html;
+    return;
+  }
 }
-function commOpenTheme(k){commCurrentTheme=k;renderCommunity()}
+
+let commNewPostOpen=false;
+function commToggleNewPost(){commNewPostOpen=!commNewPostOpen;renderCommunity()}
+async function commSubmitNewPost(){
+  const title=document.getElementById('new-post-title').value.trim();
+  const body=document.getElementById('new-post-body').value.trim();
+  if(!title||title.length<5){alert('Titre trop court (minimum 5 caractères)');return}
+  if(!body||body.length<10){alert('Corps trop court (minimum 10 caractères)');return}
+  const post=await createCommPost(commCurrentTheme,title,body);
+  if(!post) return;
+  commPosts.unshift(post);
+  commPostCounts[commCurrentTheme]=(commPostCounts[commCurrentTheme]||0)+1;
+  commNewPostOpen=false;
+  renderCommunity();
+}
+async function commSubmitReply(){
+  const body=document.getElementById('reply-input').value.trim();
+  if(!body||body.length<2){alert('Réponse trop courte');return}
+  const r=await createCommReply(commCurrentPost.id,body);
+  if(!r) return;
+  commReplies.push(r);
+  renderCommunity();
+}
+async function commDeletePost(id){
+  if(!confirm('Supprimer ce post et toutes ses réponses ?'))return;
+  const ok=await deleteCommPost(id);
+  if(!ok)return;
+  commPosts=commPosts.filter(p=>p.id!==id);
+  commPostCounts[commCurrentTheme]=Math.max(0,(commPostCounts[commCurrentTheme]||1)-1);
+  if(commView==='post'){commBackToTheme();return}
+  renderCommunity();
+}
+async function commDeleteReply(id){
+  if(!confirm('Supprimer ta réponse ?'))return;
+  const ok=await deleteCommReply(id);
+  if(!ok)return;
+  commReplies=commReplies.filter(r=>r.id!==id);
+  renderCommunity();
+}
+
+async function commOpenTheme(k){
+  commCurrentTheme=k;commView='theme';commNewPostOpen=false;
+  renderCommunity(); // shows loading
+  await loadCommPostsForTheme(k);
+  renderCommunity();
+}
+async function commOpenPost(id){
+  commView='post';commCurrentPost=null;commReplies=[];
+  renderCommunity(); // loading state
+  await loadCommPostDetail(id);
+  renderCommunity();
+}
+function commBackToThemes(){
+  commView='themes';commCurrentTheme=null;commCurrentPost=null;commPosts=[];commReplies=[];commNewPostOpen=false;
+  renderCommunity();
+}
+async function commBackToTheme(){
+  if(!commCurrentTheme){commBackToThemes();return}
+  commView='theme';commCurrentPost=null;commReplies=[];
+  renderCommunity();
+  await loadCommPostsForTheme(commCurrentTheme);
+  renderCommunity();
+}
+
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+
 
 // =========== RECOLTES ===========
 let harvestYear=new Date().getFullYear();
