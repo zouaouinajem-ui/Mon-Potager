@@ -160,6 +160,8 @@ nav{background:var(--soil);padding:0 16px;display:flex;align-items:center;positi
 .btn-primary:hover{background:var(--leaf-light)}
 .btn-sm{padding:7px 13px;font-size:12px;border-radius:8px}
 .btn-outline{background:white;border:1.5px solid var(--stone-dark);color:var(--text-mid)}
+.btn-danger{background:#fdf0ee;border:1.5px solid #f5c4b3;color:#993c1d}
+.btn-danger:hover{background:#f5c4b3}
 .btn-outline:hover{border-color:var(--leaf);color:var(--leaf)}
 .btn-premium{background:linear-gradient(135deg,#ffd700,#ffaa00);color:#3d2b1f;font-weight:600;box-shadow:0 4px 14px rgba(212,160,23,.3)}
 .btn-premium:hover{box-shadow:0 6px 20px rgba(212,160,23,.4);transform:translateY(-1px)}
@@ -531,6 +533,52 @@ nav{background:var(--soil);padding:0 16px;display:flex;align-items:center;positi
 .photo-item:hover img{transform:scale(1.04)}
 .reply-card .photo-gallery{margin:8px 0 4px}
 .reply-card .photo-item{aspect-ratio:1.6/1;max-height:200px}
+
+/* Zone wizard */
+.zw-step-label{font-size:11px;color:var(--text-soft);text-transform:uppercase;letter-spacing:.07em;font-weight:600;margin-bottom:14px}
+.zw-question{font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--soil);margin-bottom:18px;line-height:1.3}
+.zw-section-label{font-size:11px;color:var(--text-soft);text-transform:uppercase;letter-spacing:.07em;font-weight:600;margin-bottom:10px;margin-top:18px}
+.zw-section-label:first-child{margin-top:0}
+.zw-input{width:100%;padding:12px 14px;border:1.5px solid var(--stone-dark);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .15s;background:white;color:var(--text);box-sizing:border-box}
+.zw-input:focus{border-color:var(--leaf)}
+
+.zw-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px}
+.zw-type-card{background:white;border:1.5px solid var(--stone-dark);border-radius:14px;padding:18px 14px;cursor:pointer;text-align:center;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:6px}
+.zw-type-card:hover{border-color:var(--leaf-light);background:var(--leaf-pale)}
+.zw-type-card.selected{border-color:var(--leaf);background:var(--leaf-pale);box-shadow:0 0 0 3px rgba(74,140,66,.15)}
+.zw-type-emoji{font-size:48px;line-height:1}
+.zw-type-name{font-family:'Fraunces',serif;font-size:16px;font-weight:600;color:var(--soil);margin-top:4px}
+.zw-type-desc{font-size:12px;color:var(--text-soft)}
+
+.zw-preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.zw-preset{background:white;border:1.5px solid var(--stone-dark);border-radius:12px;padding:12px;cursor:pointer;text-align:center;transition:all .15s}
+.zw-preset:hover{border-color:var(--leaf-light)}
+.zw-preset.selected{border-color:var(--leaf);background:var(--leaf-pale)}
+.zw-preset-name{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--soil);margin-bottom:2px}
+.zw-preset-dim{font-size:11px;color:var(--text-soft)}
+
+.zw-dim-row{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
+.zw-dim-x{font-size:18px;color:var(--text-soft);text-align:center;align-self:end;padding-bottom:12px}
+.zw-dim-col label{font-size:11px;color:var(--text-soft);text-transform:uppercase;letter-spacing:.05em;font-weight:600;display:block;margin-bottom:5px}
+.zw-dim-col input{width:100%;padding:10px 12px;border:1.5px solid var(--stone-dark);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .15s;background:white;color:var(--text);box-sizing:border-box}
+.zw-dim-col input:focus{border-color:var(--leaf)}
+
+.zw-shade-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.zw-shade-card{background:white;border:1.5px solid var(--stone-dark);border-radius:12px;padding:14px 10px;cursor:pointer;text-align:center;transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:4px}
+.zw-shade-card:hover{border-color:var(--leaf-light)}
+.zw-shade-card.selected{border-color:var(--leaf);background:var(--leaf-pale)}
+.zw-shade-emoji{font-size:28px;line-height:1}
+.zw-shade-name{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--soil);margin-top:3px}
+.zw-shade-hours{font-size:11px;color:var(--text-soft)}
+
+.zw-orient-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
+.zw-orient-pill{background:white;border:1.5px solid var(--stone-dark);border-radius:10px;padding:10px 0;cursor:pointer;text-align:center;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:var(--text-mid);transition:all .12s}
+.zw-orient-pill:hover{border-color:var(--leaf-light)}
+.zw-orient-pill.selected{background:var(--leaf);color:white;border-color:var(--leaf)}
+
+.zw-actions{display:flex;gap:10px;margin-top:24px;padding-top:18px;border-top:1px solid var(--stone)}
+.zw-actions .btn{flex:1;justify-content:center}
+.zw-actions .btn-back{flex:0 0 auto;min-width:100px}
 
 /* Lightbox */
 .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px}
@@ -943,6 +991,17 @@ nav{background:var(--soil);padding:0 16px;display:flex;align-items:center;positi
       <button class="modal-close" onclick="closeFiche()">✕</button>
     </div>
     <div class="modal-body" id="fiche-body"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="zone-wizard-modal" onclick="if(event.target===this)closeZoneWizard()">
+  <div class="modal modal-large">
+    <div class="modal-head">
+      <div class="modal-emoji">🗺️</div>
+      <div class="modal-title-wrap"><div class="modal-title" id="zw-title">Nouvelle zone</div><div class="modal-sub" id="zw-sub">Décris ton espace</div></div>
+      <button class="modal-close" onclick="closeZoneWizard()">✕</button>
+    </div>
+    <div class="modal-body" id="zw-body"></div>
   </div>
 </div>
 
@@ -1378,65 +1437,178 @@ function renderZonesPage(){
   c.innerHTML='<div class="zones-grid">'+zones.map(z=>renderZoneCard(z)).join('')+'</div>';
 }
 
-async function tryAddZone(){
+// ============ ZONE WIZARD MODAL ============
+const ZONE_PRESETS={
+  jardin:[
+    {name:'Carré potager',w:1.2,h:1.2,desc:'1,2 × 1,2 m'},
+    {name:'Grand carré',w:2.4,h:2.4,desc:'2,4 × 2,4 m'},
+    {name:'Bande étroite',w:4,h:1,desc:'4 × 1 m'},
+    {name:'Potager moyen',w:4,h:3,desc:'4 × 3 m'},
+    {name:'Grand potager',w:6,h:4,desc:'6 × 4 m'}
+  ],
+  balcon:[
+    {name:'Petit bac',w:0.8,h:0.4,desc:'80 × 40 cm'},
+    {name:'Jardinière',w:1,h:0.4,desc:'1 m × 40 cm'},
+    {name:'Grande jardinière',w:1.5,h:0.4,desc:'1,5 m × 40 cm'},
+    {name:'Bac terrasse',w:1.2,h:0.6,desc:'1,2 × 0,6 m'},
+    {name:'Carré sur pieds',w:1.2,h:0.8,desc:'1,2 × 0,8 m'}
+  ]
+};
+const ZW_SHADES=[
+  {key:'plein-soleil',emoji:'☀️',name:'Plein soleil',hours:'6h+'},
+  {key:'mi-ombre',emoji:'⛅',name:'Mi-ombre',hours:'3-6h'},
+  {key:'ombre-partielle',emoji:'🌥️',name:'Ombre partielle',hours:'2-3h'},
+  {key:'ombre',emoji:'🌑',name:'Ombragé',hours:'<2h'}
+];
+const ZW_ORIENT=['N','E','S','O'];
+
+let zwState={mode:'create',step:1,id:null,type:'jardin',name:'',w:null,h:null,shade:null,orient:null,notes:''};
+
+function openZoneWizard(){
   if(currentUser.tier==='free'&&zones.length>=1){showLock('zone');return}
-  const name=prompt('Nom de la zone :','Ma zone');
-  if(!name||!name.trim()) return;
-  const wStr=prompt('Largeur en mètres :\n(ex : 3 pour 3m)','3');
-  const w=parseFloat(wStr);
-  if(!w||w<=0||w>50){alert('Largeur invalide (entre 0.1 et 50 m)');return}
-  const hStr=prompt('Longueur en mètres :\n(ex : 2 pour 2m)','2');
-  const h=parseFloat(hStr);
-  if(!h||h<=0||h>50){alert('Longueur invalide (entre 0.1 et 50 m)');return}
-  const shade=prompt('Ensoleillement :\n• plein-soleil\n• mi-ombre\n• ombre-partielle\n• ombre','plein-soleil');
-  const validShades=['plein-soleil','mi-ombre','ombre-partielle','ombre'];
-  if(!validShades.includes(shade)){alert('Ensoleillement invalide');return}
-  const tmp={name:name.trim(),type:'jardin',w,h,shade,isFreeZone:false};
-  const saved=await saveZoneInsert(tmp);
-  if(!saved) return;
-  zones.push(saved);
+  zwState={mode:'create',step:1,id:null,type:'jardin',name:'',w:null,h:null,shade:'plein-soleil',orient:null,notes:''};
+  document.getElementById('zone-wizard-modal').classList.add('open');
+  zwRender();
+}
+function openZoneWizardEdit(id){
+  const z=zones.find(x=>x.id===id);if(!z)return;
+  zwState={mode:'edit',step:2,id:z.id,type:z.type==='balcon'?'balcon':'jardin',name:z.name,w:z.w,h:z.h,shade:z.shade,orient:z.orient||null,notes:z.notes||''};
+  document.getElementById('zone-wizard-modal').classList.add('open');
+  zwRender();
+}
+function closeZoneWizard(){document.getElementById('zone-wizard-modal').classList.remove('open')}
+function zwGoStep(s){zwState.step=s;zwRender()}
+
+function zwRender(){
+  const titleEl=document.getElementById('zw-title');
+  const subEl=document.getElementById('zw-sub');
+  titleEl.textContent=zwState.mode==='edit'?'Modifier la zone':'Nouvelle zone';
+  subEl.textContent=zwState.mode==='edit'?'Mets à jour les détails':'Décris ton espace';
+  const body=document.getElementById('zw-body');
+  if(zwState.step===1){body.innerHTML=zwStep1();return}
+  if(zwState.step===2){body.innerHTML=zwStep2();zwBindStep2Inputs();return}
+}
+
+function zwStep1(){
+  return '<div class="zw-step-label">Étape 1 sur 2 — Type</div>'+
+    '<div class="zw-question">Quel type d\'espace ?</div>'+
+    '<div class="zw-type-grid">'+
+      '<div class="zw-type-card '+(zwState.type==='jardin'?'selected':'')+'" onclick="zwSelectType(\'jardin\')">'+
+        '<div class="zw-type-emoji">🏡</div>'+
+        '<div class="zw-type-name">Jardin / Potager</div>'+
+        '<div class="zw-type-desc">Pleine terre, carré</div>'+
+      '</div>'+
+      '<div class="zw-type-card '+(zwState.type==='balcon'?'selected':'')+'" onclick="zwSelectType(\'balcon\')">'+
+        '<div class="zw-type-emoji">🪴</div>'+
+        '<div class="zw-type-name">Balcon / Terrasse</div>'+
+        '<div class="zw-type-desc">Bacs, jardinières</div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="zw-actions"><button class="btn btn-outline" onclick="closeZoneWizard()">Annuler</button><button class="btn btn-primary" onclick="zwGoStep(2)">Suivant →</button></div>';
+}
+
+function zwStep2(){
+  const presets=ZONE_PRESETS[zwState.type]||[];
+  let html='<div class="zw-step-label">Étape 2 sur 2 — Détails</div>';
+  html+='<div class="zw-section-label">Nom de la zone</div>';
+  html+='<input type="text" class="zw-input" id="zw-name" placeholder="ex : Carré du fond, Balcon est..." value="'+escapeHtml(zwState.name||'')+'" maxlength="60">';
+  html+='<div class="zw-section-label">Dimensions</div>';
+  html+='<div class="zw-preset-grid">';
+  presets.forEach((p,i)=>{
+    const sel=Math.abs(zwState.w-p.w)<0.01&&Math.abs(zwState.h-p.h)<0.01;
+    html+='<div class="zw-preset '+(sel?'selected':'')+'" onclick="zwSelectPreset('+i+')"><div class="zw-preset-name">'+p.name+'</div><div class="zw-preset-dim">'+p.desc+'</div></div>';
+  });
+  html+='</div>';
+  html+='<div class="zw-section-label" style="margin-top:14px">Ou dimensions personnalisées</div>';
+  html+='<div class="zw-dim-row"><div class="zw-dim-col"><label>Largeur (m)</label><input type="number" id="zw-w" min="0.1" max="50" step="0.1" value="'+(zwState.w||'')+'" placeholder="3"></div><div class="zw-dim-x">×</div><div class="zw-dim-col"><label>Longueur (m)</label><input type="number" id="zw-h" min="0.1" max="50" step="0.1" value="'+(zwState.h||'')+'" placeholder="2"></div></div>';
+  html+='<div class="zw-section-label">Ensoleillement</div>';
+  html+='<div class="zw-shade-grid">';
+  ZW_SHADES.forEach(s=>{
+    html+='<div class="zw-shade-card '+(zwState.shade===s.key?'selected':'')+'" onclick="zwSelectShade(\''+s.key+'\')"><div class="zw-shade-emoji">'+s.emoji+'</div><div class="zw-shade-name">'+s.name+'</div><div class="zw-shade-hours">'+s.hours+'</div></div>';
+  });
+  html+='</div>';
+  html+='<div class="zw-section-label">Orientation (optionnel)</div>';
+  html+='<div class="zw-orient-row">';
+  ZW_ORIENT.forEach(o=>{
+    html+='<div class="zw-orient-pill '+(zwState.orient===o?'selected':'')+'" onclick="zwSelectOrient(\''+o+'\')">'+o+'</div>';
+  });
+  html+='</div>';
+  html+='<div class="zw-section-label">Notes (optionnel)</div>';
+  html+='<input type="text" class="zw-input" id="zw-notes" placeholder="Sol argileux, vent..." value="'+escapeHtml(zwState.notes||'')+'" maxlength="200">';
+  // Actions
+  if(zwState.mode==='edit'){
+    html+='<div class="zw-actions"><button class="btn btn-outline" onclick="closeZoneWizard()">Annuler</button><button class="btn btn-danger" onclick="zwDeleteFromWizard()">🗑 Supprimer</button><button class="btn btn-primary" onclick="zwSave()">Enregistrer</button></div>';
+  } else {
+    html+='<div class="zw-actions"><button class="btn btn-outline btn-back" onclick="zwGoStep(1)">← Retour</button><button class="btn btn-primary" onclick="zwSave()">Enregistrer</button></div>';
+  }
+  return html;
+}
+function zwBindStep2Inputs(){
+  const n=document.getElementById('zw-name');if(n)n.oninput=e=>{zwState.name=e.target.value};
+  const w=document.getElementById('zw-w');if(w)w.oninput=e=>{zwState.w=parseFloat(e.target.value)||null;zwClearPresetSelection()};
+  const h=document.getElementById('zw-h');if(h)h.oninput=e=>{zwState.h=parseFloat(e.target.value)||null;zwClearPresetSelection()};
+  const nt=document.getElementById('zw-notes');if(nt)nt.oninput=e=>{zwState.notes=e.target.value};
+  setTimeout(()=>n?.focus(),50);
+}
+function zwClearPresetSelection(){
+  // visually un-highlight presets without re-rendering inputs (would lose focus)
+  document.querySelectorAll('.zw-preset').forEach(el=>el.classList.remove('selected'));
+}
+function zwSelectType(t){zwState.type=t;zwRender()}
+function zwSelectPreset(i){
+  const p=ZONE_PRESETS[zwState.type][i];
+  zwState.w=p.w;zwState.h=p.h;
+  if(!zwState.name) zwState.name=p.name;
+  zwRender();
+}
+function zwSelectShade(k){zwState.shade=k;zwRender()}
+function zwSelectOrient(o){zwState.orient=zwState.orient===o?null:o;zwRender()}
+
+async function zwSave(){
+  // Read latest input values (in case user typed but didn't blur)
+  const nameInput=document.getElementById('zw-name');if(nameInput)zwState.name=nameInput.value;
+  const wIn=document.getElementById('zw-w');if(wIn)zwState.w=parseFloat(wIn.value)||zwState.w;
+  const hIn=document.getElementById('zw-h');if(hIn)zwState.h=parseFloat(hIn.value)||zwState.h;
+  const ntIn=document.getElementById('zw-notes');if(ntIn)zwState.notes=ntIn.value;
+  const name=(zwState.name||'').trim();
+  if(!name){alert('Donne un nom à ta zone');return}
+  if(!zwState.w||zwState.w<=0||zwState.w>50){alert('Largeur invalide (entre 0.1 et 50 m)');return}
+  if(!zwState.h||zwState.h<=0||zwState.h>50){alert('Longueur invalide (entre 0.1 et 50 m)');return}
+  if(!zwState.shade){alert('Choisis un ensoleillement');return}
+
+  if(zwState.mode==='edit'){
+    const z=zones.find(x=>x.id===zwState.id);
+    if(!z){closeZoneWizard();return}
+    z.name=name;z.w=zwState.w;z.h=zwState.h;z.shade=zwState.shade;z.orient=zwState.orient;
+    await saveZoneUpdate(z);
+  } else {
+    const tmp={name,type:zwState.type,w:zwState.w,h:zwState.h,shade:zwState.shade,orient:zwState.orient,isFreeZone:false};
+    const saved=await saveZoneInsert(tmp);
+    if(!saved) return;
+    zones.push(saved);
+  }
+  closeZoneWizard();
   if(document.getElementById('page-dashboard').classList.contains('active'))renderDashboard();
   if(document.getElementById('page-zones').classList.contains('active'))renderZonesPage();
 }
 
+async function zwDeleteFromWizard(){
+  const id=zwState.id;
+  closeZoneWizard();
+  await deleteZone(id);
+}
+
+// ===== Public entry points (replace prompt-based versions) =====
+async function tryAddZone(){
+  openZoneWizard();
+}
+
 async function editZone(id){
-  const z=zones.find(x=>x.id===id);if(!z)return;
-  const action=prompt('Que veux-tu faire avec "'+z.name+'" ?\n\n1. Renommer\n2. Modifier les dimensions\n3. Modifier l\'ensoleillement\n4. Supprimer la zone\n\nTape 1, 2, 3 ou 4 :','1');
-  if(!action) return;
-  if(action==='1'){
-    const newName=prompt('Nouveau nom :',z.name);
-    if(!newName||!newName.trim()) return;
-    z.name=newName.trim();
-    await saveZoneUpdate(z);
-  } else if(action==='2'){
-    const wStr=prompt('Nouvelle largeur (m) :',String(z.w));
-    const w=parseFloat(wStr);
-    if(!w||w<=0||w>50){alert('Largeur invalide');return}
-    const hStr=prompt('Nouvelle longueur (m) :',String(z.h));
-    const h=parseFloat(hStr);
-    if(!h||h<=0||h>50){alert('Longueur invalide');return}
-    z.w=w;z.h=h;
-    await saveZoneUpdate(z);
-  } else if(action==='3'){
-    const shade=prompt('Nouvel ensoleillement :\n• plein-soleil\n• mi-ombre\n• ombre-partielle\n• ombre',z.shade);
-    const validShades=['plein-soleil','mi-ombre','ombre-partielle','ombre'];
-    if(!validShades.includes(shade)){alert('Valeur invalide');return}
-    z.shade=shade;
-    await saveZoneUpdate(z);
-  } else if(action==='4'){
-    await deleteZone(id);
-    return;
-  } else {
-    alert('Choix invalide');
-    return;
-  }
-  if(document.getElementById('page-dashboard').classList.contains('active'))renderDashboard();
-  if(document.getElementById('page-zones').classList.contains('active'))renderZonesPage();
+  openZoneWizardEdit(id);
 }
 
 async function deleteZone(id){
   const z=zones.find(x=>x.id===id);if(!z)return;
-  // Count cultures in this zone
   const cultsInZone=myPlants.filter(c=>c.zoneId===id);
   let warning='Supprimer la zone "'+z.name+'" ?';
   if(cultsInZone.length>0){
@@ -1447,10 +1619,7 @@ async function deleteZone(id){
   const ok=await saveZoneDelete(id);
   if(!ok) return;
   zones=zones.filter(x=>x.id!==id);
-  // Cascade is handled by Postgres ON DELETE CASCADE → cultures already gone in DB.
-  // Mirror in memory:
   myPlants=myPlants.filter(c=>c.zoneId!==id);
-  // Same for harvests linked to this zone (kept but zone_id null in DB via SET NULL)
   harvests.forEach(h=>{if(h.zoneId===id) h.zoneId=null});
   if(document.getElementById('page-dashboard').classList.contains('active'))renderDashboard();
   if(document.getElementById('page-zones').classList.contains('active'))renderZonesPage();
