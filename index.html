@@ -502,6 +502,47 @@ nav{background:var(--soil);padding:0 16px;display:flex;align-items:center;positi
 .reply-form-actions{display:flex;gap:8px;justify-content:flex-end}
 
 .comm-loading{text-align:center;padding:32px;color:var(--text-soft);font-size:13px}
+
+/* Photo upload UI */
+.photo-upload-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.photo-upload-btn{display:inline-flex;align-items:center;gap:6px;background:var(--leaf-pale);color:var(--leaf);border:1.5px dashed var(--leaf-light);padding:7px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;transition:all .12s;font-family:'DM Sans',sans-serif}
+.photo-upload-btn:hover{background:white;border-style:solid}
+.photo-upload-btn input[type=file]{display:none}
+.photo-upload-btn.disabled{opacity:.5;cursor:not-allowed}
+.photo-upload-info{font-size:11px;color:var(--text-soft)}
+.photo-previews{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.photo-preview{position:relative;width:80px;height:80px;border-radius:10px;overflow:hidden;border:1px solid var(--stone-dark);background:var(--cream)}
+.photo-preview img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-preview-remove{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);color:white;border:none;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0}
+.photo-preview-remove:hover{background:#c0392b}
+.photo-preview.uploading::after{content:'⏳';position:absolute;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;font-size:24px}
+
+/* Photo gallery in posts/replies */
+.photo-gallery{display:grid;gap:6px;margin:10px 0;border-radius:12px;overflow:hidden}
+.photo-gallery.count-1{grid-template-columns:1fr}
+.photo-gallery.count-2{grid-template-columns:1fr 1fr}
+.photo-gallery.count-3{grid-template-columns:2fr 1fr;grid-template-rows:1fr 1fr}
+.photo-gallery.count-3 .photo-item:first-child{grid-row:span 2}
+.photo-gallery.count-4{grid-template-columns:1fr 1fr}
+.photo-item{position:relative;cursor:pointer;background:var(--cream);overflow:hidden;border-radius:10px;aspect-ratio:1.4/1}
+.photo-gallery.count-1 .photo-item{aspect-ratio:1.6/1;max-height:340px}
+.photo-gallery.count-3 .photo-item:first-child{aspect-ratio:auto}
+.photo-item img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .25s}
+.photo-item:hover img{transform:scale(1.04)}
+.reply-card .photo-gallery{margin:8px 0 4px}
+.reply-card .photo-item{aspect-ratio:1.6/1;max-height:200px}
+
+/* Lightbox */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px}
+.lightbox.open{display:flex}
+.lightbox img{max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.lightbox-close{position:absolute;top:20px;right:20px;background:rgba(255,255,255,.15);color:white;border:none;width:42px;height:42px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.lightbox-close:hover{background:rgba(255,255,255,.3)}
+.lightbox-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.15);color:white;border:none;width:48px;height:48px;border-radius:50%;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.lightbox-nav:hover{background:rgba(255,255,255,.3)}
+.lightbox-nav.prev{left:20px}
+.lightbox-nav.next{right:20px}
+.lightbox-counter{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:white;padding:6px 14px;border-radius:20px;font-size:12px}
 /* Harvest */
 .harvest-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
 .year-tabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap}
@@ -903,6 +944,14 @@ nav{background:var(--soil);padding:0 16px;display:flex;align-items:center;positi
     </div>
     <div class="modal-body" id="fiche-body"></div>
   </div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="if(event.target===this)closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <button class="lightbox-nav prev" onclick="lightboxNav(-1)">‹</button>
+  <img id="lightbox-img" src="" alt="">
+  <button class="lightbox-nav next" onclick="lightboxNav(1)">›</button>
+  <div class="lightbox-counter" id="lightbox-counter"></div>
 </div>
 
 <script>
@@ -1881,6 +1930,154 @@ async function removeCulture(id){
   if(document.getElementById('page-dashboard').classList.contains('active'))renderDashboard();
 }
 
+// =========== PHOTO UPLOAD HELPERS ===========
+const PHOTO_BUCKET='community-photos';
+const MAX_PHOTOS_PER_POST=4;
+const MAX_DIMENSION=1200; // px
+const JPEG_QUALITY=0.82;
+
+// Compress an image File on the client side, returns a Blob
+async function compressImage(file){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    const reader=new FileReader();
+    reader.onload=e=>{img.src=e.target.result};
+    reader.onerror=reject;
+    img.onload=()=>{
+      let {width,height}=img;
+      if(width>height&&width>MAX_DIMENSION){height=Math.round(height*MAX_DIMENSION/width);width=MAX_DIMENSION}
+      else if(height>=width&&height>MAX_DIMENSION){width=Math.round(width*MAX_DIMENSION/height);height=MAX_DIMENSION}
+      const canvas=document.createElement('canvas');
+      canvas.width=width;canvas.height=height;
+      const ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0,width,height);
+      canvas.toBlob(blob=>{
+        if(!blob)return reject(new Error('Compression failed'));
+        resolve(blob);
+      },'image/jpeg',JPEG_QUALITY);
+    };
+    img.onerror=()=>reject(new Error('Image load failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+// Upload one compressed image, returns the public URL
+async function uploadPhoto(blob){
+  const fileName=Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.jpg';
+  const path=currentUser.id+'/'+fileName;
+  const {data,error}=await sb.storage.from(PHOTO_BUCKET).upload(path,blob,{contentType:'image/jpeg',cacheControl:'3600'});
+  if(error){console.error(error);throw error}
+  const {data:urlData}=sb.storage.from(PHOTO_BUCKET).getPublicUrl(path);
+  return {url:urlData.publicUrl,path};
+}
+
+// Pending photos buffer for current form (post or reply)
+let pendingPhotos={post:[],reply:[]}; // each item: {id, file, dataUrl, status: 'pending'|'uploading'|'done', url?, path?}
+
+function addPhotosToForm(kind,fileList){
+  if(!fileList||!fileList.length) return;
+  const remaining=MAX_PHOTOS_PER_POST-pendingPhotos[kind].length;
+  if(remaining<=0){alert('Maximum '+MAX_PHOTOS_PER_POST+' photos par message');return}
+  const files=Array.from(fileList).slice(0,remaining);
+  files.forEach(f=>{
+    if(!f.type.startsWith('image/')){alert('Seules les images sont acceptées : '+f.name);return}
+    if(f.size>10*1024*1024){alert('Image trop grosse (>10 Mo) : '+f.name);return}
+    const reader=new FileReader();
+    reader.onload=e=>{
+      pendingPhotos[kind].push({id:'pp'+Date.now()+Math.random(),file:f,dataUrl:e.target.result,status:'pending'});
+      renderPhotoPreviews(kind);
+    };
+    reader.readAsDataURL(f);
+  });
+}
+
+function removePendingPhoto(kind,id){
+  pendingPhotos[kind]=pendingPhotos[kind].filter(p=>p.id!==id);
+  renderPhotoPreviews(kind);
+}
+
+function renderPhotoPreviews(kind){
+  const c=document.getElementById('photo-previews-'+kind);
+  if(!c) return;
+  if(pendingPhotos[kind].length===0){c.innerHTML='';return}
+  c.innerHTML=pendingPhotos[kind].map(p=>{
+    return '<div class="photo-preview '+(p.status==='uploading'?'uploading':'')+'"><img src="'+p.dataUrl+'" alt=""><button class="photo-preview-remove" onclick="removePendingPhoto(\''+kind+'\',\''+p.id+'\')" '+(p.status==='uploading'?'disabled':'')+'>✕</button></div>';
+  }).join('');
+}
+
+// Upload all pending photos for a kind. Returns array of public URLs.
+async function uploadAllPending(kind){
+  const list=pendingPhotos[kind];
+  if(!list.length) return [];
+  const urls=[];
+  for(const p of list){
+    p.status='uploading';renderPhotoPreviews(kind);
+    try{
+      const blob=await compressImage(p.file);
+      const {url}=await uploadPhoto(blob);
+      p.url=url;p.status='done';
+      urls.push(url);
+    }catch(e){
+      console.error('Upload failed',e);
+      alert('Erreur lors de l\'envoi d\'une photo : '+(e.message||'inconnue'));
+      // Mark this photo back to pending so user can retry; abort upload chain
+      p.status='pending';renderPhotoPreviews(kind);
+      throw e;
+    }
+  }
+  return urls;
+}
+
+function clearPendingPhotos(kind){pendingPhotos[kind]=[];const c=document.getElementById('photo-previews-'+kind);if(c)c.innerHTML=''}
+
+function renderPhotoUploadRow(kind){
+  const cnt=pendingPhotos[kind].length;
+  const remaining=MAX_PHOTOS_PER_POST-cnt;
+  return '<div class="photo-previews" id="photo-previews-'+kind+'"></div>'+
+    '<div class="photo-upload-row"><label class="photo-upload-btn '+(remaining<=0?'disabled':'')+'">📷 '+(cnt===0?'Ajouter des photos':'Ajouter encore')+
+    '<input type="file" accept="image/*" multiple onchange="addPhotosToForm(\''+kind+'\',this.files);this.value=\'\'" '+(remaining<=0?'disabled':'')+'></label>'+
+    '<span class="photo-upload-info">'+cnt+'/'+MAX_PHOTOS_PER_POST+' · max 1200px, compressé auto</span></div>';
+}
+
+// Render photo gallery for a post/reply
+function renderPhotoGallery(photos){
+  if(!photos||photos.length===0) return '';
+  const cnt=Math.min(photos.length,4);
+  const photosJson=encodeURIComponent(JSON.stringify(photos));
+  let html='<div class="photo-gallery count-'+cnt+'">';
+  photos.slice(0,4).forEach((url,i)=>{
+    html+='<div class="photo-item" onclick="openLightbox(\''+photosJson+'\','+i+')"><img src="'+url+'" alt="" loading="lazy"></div>';
+  });
+  html+='</div>';
+  return html;
+}
+
+// Lightbox
+let lightboxPhotos=[];let lightboxIdx=0;
+function openLightbox(photosJson,idx){
+  try{lightboxPhotos=JSON.parse(decodeURIComponent(photosJson))}catch(e){lightboxPhotos=[]}
+  lightboxIdx=idx||0;
+  if(!lightboxPhotos.length) return;
+  document.getElementById('lightbox-img').src=lightboxPhotos[lightboxIdx];
+  document.getElementById('lightbox-counter').textContent=(lightboxIdx+1)+' / '+lightboxPhotos.length;
+  document.getElementById('lightbox').classList.add('open');
+  // Hide nav buttons if only 1 photo
+  document.querySelectorAll('.lightbox-nav').forEach(b=>b.style.display=lightboxPhotos.length>1?'flex':'none');
+}
+function closeLightbox(){document.getElementById('lightbox').classList.remove('open')}
+function lightboxNav(dir){
+  if(!lightboxPhotos.length) return;
+  lightboxIdx=(lightboxIdx+dir+lightboxPhotos.length)%lightboxPhotos.length;
+  document.getElementById('lightbox-img').src=lightboxPhotos[lightboxIdx];
+  document.getElementById('lightbox-counter').textContent=(lightboxIdx+1)+' / '+lightboxPhotos.length;
+}
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('lightbox')?.classList.contains('open')) return;
+  if(e.key==='Escape') closeLightbox();
+  else if(e.key==='ArrowLeft') lightboxNav(-1);
+  else if(e.key==='ArrowRight') lightboxNav(1);
+});
+
 // =========== COMMUNITY ===========
 const COMM_THEMES=[
   {key:'semis',name:'Semis',icon:'🌱',desc:'Démarrer ses graines, godets, repiquages',cls:'semis'},
@@ -1926,10 +2123,10 @@ function avatarFromName(name){
 }
 
 function postFromDb(r){
-  return {id:r.id,user_id:r.user_id,theme:r.theme,author:r.author_name,avatar:r.avatar_color||avatarFromName(r.author_name),title:r.title,body:r.body,time:new Date(r.created_at).getTime(),likes:r.likes_count||0,is_demo:false};
+  return {id:r.id,user_id:r.user_id,theme:r.theme,author:r.author_name,avatar:r.avatar_color||avatarFromName(r.author_name),title:r.title,body:r.body,time:new Date(r.created_at).getTime(),likes:r.likes_count||0,photos:r.photos||[],is_demo:false};
 }
 function replyFromDb(r){
-  return {id:r.id,user_id:r.user_id,post_id:r.post_id,author:r.author_name,avatar:r.avatar_color||avatarFromName(r.author_name),body:r.body,time:new Date(r.created_at).getTime(),likes:r.likes_count||0};
+  return {id:r.id,user_id:r.user_id,post_id:r.post_id,author:r.author_name,avatar:r.avatar_color||avatarFromName(r.author_name),body:r.body,time:new Date(r.created_at).getTime(),likes:r.likes_count||0,photos:r.photos||[]};
 }
 
 async function loadCommPostCounts(){
@@ -1980,16 +2177,16 @@ async function loadCommPostDetail(postId){
   commLoading=false;
 }
 
-async function createCommPost(theme,title,body){
+async function createCommPost(theme,title,body,photos){
   try{
-    const {data,error}=await sb.from('community_posts').insert({user_id:currentUser.id,author_name:currentUser.name,avatar_color:avatarFromName(currentUser.name),theme,title,body}).select().single();
+    const {data,error}=await sb.from('community_posts').insert({user_id:currentUser.id,author_name:currentUser.name,avatar_color:avatarFromName(currentUser.name),theme,title,body,photos:photos||[]}).select().single();
     if(error) throw error;
     return postFromDb(data);
   }catch(e){console.error(e);alert('Erreur création post : '+e.message);return null}
 }
-async function createCommReply(postId,body){
+async function createCommReply(postId,body,photos){
   try{
-    const {data,error}=await sb.from('community_replies').insert({post_id:postId,user_id:currentUser.id,author_name:currentUser.name,avatar_color:avatarFromName(currentUser.name),body}).select().single();
+    const {data,error}=await sb.from('community_replies').insert({post_id:postId,user_id:currentUser.id,author_name:currentUser.name,avatar_color:avatarFromName(currentUser.name),body,photos:photos||[]}).select().single();
     if(error) throw error;
     return replyFromDb(data);
   }catch(e){console.error(e);alert('Erreur réponse : '+e.message);return null}
@@ -2068,7 +2265,7 @@ async function renderCommunity(){
       // form will be injected below
     }
     if(commNewPostOpen){
-      html+='<div class="comm-new-post" id="new-post-form-open"><h4>Nouveau post dans '+theme.name+'</h4><input type="text" id="new-post-title" placeholder="Titre clair de ton post" maxlength="120"><textarea id="new-post-body" placeholder="Décris ta question, ton retour, ton astuce..." maxlength="2000"></textarea><div class="comm-new-post-actions"><button class="btn btn-outline btn-sm" onclick="commToggleNewPost()">Annuler</button><button class="btn btn-primary btn-sm" onclick="commSubmitNewPost()">Publier</button></div></div>';
+      html+='<div class="comm-new-post" id="new-post-form-open"><h4>Nouveau post dans '+theme.name+'</h4><input type="text" id="new-post-title" placeholder="Titre clair de ton post" maxlength="120"><textarea id="new-post-body" placeholder="Décris ta question, ton retour, ton astuce..." maxlength="2000"></textarea>'+renderPhotoUploadRow('post')+'<div class="comm-new-post-actions"><button class="btn btn-outline btn-sm" onclick="commCancelNewPost()">Annuler</button><button class="btn btn-primary btn-sm" onclick="commSubmitNewPost()">Publier</button></div></div>';
     }
 
     if(commLoading){html+='<div class="comm-loading">Chargement...</div>';c.innerHTML=html;return}
@@ -2085,7 +2282,7 @@ async function renderCommunity(){
       const initials=p.author.split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase();
       const liked=commLikedPostIds.has(p.id);
       const isMine=p.user_id===currentUser.id;
-      html+='<div class="comm-post" style="cursor:pointer" onclick="commOpenPost(\''+p.id+'\')"><div class="comm-avatar" style="background:'+p.avatar+'">'+initials+'</div><div class="comm-content"><div class="comm-meta"><span class="comm-author">'+escapeHtml(p.author)+(isMine?' (toi)':'')+'</span>·<span>'+fmtTime(p.time)+'</span></div><div class="comm-title">'+escapeHtml(p.title)+'</div><div class="comm-text">'+escapeHtml(p.body)+'</div><div class="comm-actions"><button class="comm-action '+(liked?'liked':'')+'" onclick="event.stopPropagation();togglePostLike(\''+p.id+'\')">'+(liked?'❤️':'🤍')+' '+p.likes+'</button><span class="comm-action">💬 Lire / répondre</span>'+(isMine?'<button class="comm-action" onclick="event.stopPropagation();commDeletePost(\''+p.id+'\')">🗑 Supprimer</button>':'')+'</div></div></div>';
+      html+='<div class="comm-post" style="cursor:pointer" onclick="commOpenPost(\''+p.id+'\')"><div class="comm-avatar" style="background:'+p.avatar+'">'+initials+'</div><div class="comm-content"><div class="comm-meta"><span class="comm-author">'+escapeHtml(p.author)+(isMine?' (toi)':'')+'</span>·<span>'+fmtTime(p.time)+'</span></div><div class="comm-title">'+escapeHtml(p.title)+'</div><div class="comm-text">'+escapeHtml(p.body)+'</div>'+renderPhotoGallery(p.photos)+'<div class="comm-actions"><button class="comm-action '+(liked?'liked':'')+'" onclick="event.stopPropagation();togglePostLike(\''+p.id+'\')">'+(liked?'❤️':'🤍')+' '+p.likes+'</button><span class="comm-action">💬 Lire / répondre</span>'+(isMine?'<button class="comm-action" onclick="event.stopPropagation();commDeletePost(\''+p.id+'\')">🗑 Supprimer</button>':'')+'</div></div></div>';
     });
     // Demo posts (read-only)
     demoPosts.forEach(p=>{
@@ -2095,7 +2292,7 @@ async function renderCommunity(){
     });
     html+='</div>';
     c.innerHTML=html;
-    if(commNewPostOpen){setTimeout(()=>document.getElementById('new-post-title')?.focus(),50)}
+    if(commNewPostOpen){setTimeout(()=>document.getElementById('new-post-title')?.focus(),50);renderPhotoPreviews('post')}
     return;
   }
   if(commView==='post'){
@@ -2111,6 +2308,7 @@ async function renderCommunity(){
     html+='<div class="post-detail-meta"><span class="comm-author">'+escapeHtml(p.author)+(isMine?' (toi)':'')+'</span>·<span>'+fmtTime(p.time)+'</span></div>';
     html+='<div class="post-detail-title">'+escapeHtml(p.title)+'</div>';
     html+='<div class="post-detail-body">'+escapeHtml(p.body)+'</div>';
+    html+=renderPhotoGallery(p.photos);
     html+='<div class="post-detail-actions"><button class="comm-action '+(liked?'liked':'')+'" onclick="togglePostLike(\''+p.id+'\')">'+(liked?'❤️':'🤍')+' '+p.likes+'</button><span class="comm-action">💬 '+commReplies.length+' réponse'+(commReplies.length>1?'s':'')+'</span>'+(isMine?'<button class="comm-action" onclick="commDeletePost(\''+p.id+'\')">🗑 Supprimer</button>':'')+'</div>';
     html+='</div></div></div>';
 
@@ -2121,37 +2319,51 @@ async function renderCommunity(){
         const ri=r.author.split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase();
         const rl=commLikedReplyIds.has(r.id);
         const isMineR=r.user_id===currentUser.id;
-        html+='<div class="reply-card"><div class="reply-avatar" style="background:'+r.avatar+'">'+ri+'</div><div class="reply-content"><div class="reply-meta"><span class="reply-author '+(isMineR?'you':'')+'">'+escapeHtml(r.author)+(isMineR?' (toi)':'')+'</span>·<span>'+fmtTime(r.time)+'</span></div><div class="reply-body">'+escapeHtml(r.body)+'</div><div class="reply-actions"><button class="comm-action '+(rl?'liked':'')+'" onclick="toggleReplyLike(\''+r.id+'\')">'+(rl?'❤️':'🤍')+' '+r.likes+'</button>'+(isMineR?'<button class="comm-action" onclick="commDeleteReply(\''+r.id+'\')">🗑 Supprimer</button>':'')+'</div></div></div>';
+        html+='<div class="reply-card"><div class="reply-avatar" style="background:'+r.avatar+'">'+ri+'</div><div class="reply-content"><div class="reply-meta"><span class="reply-author '+(isMineR?'you':'')+'">'+escapeHtml(r.author)+(isMineR?' (toi)':'')+'</span>·<span>'+fmtTime(r.time)+'</span></div><div class="reply-body">'+escapeHtml(r.body)+'</div>'+renderPhotoGallery(r.photos)+'<div class="reply-actions"><button class="comm-action '+(rl?'liked':'')+'" onclick="toggleReplyLike(\''+r.id+'\')">'+(rl?'❤️':'🤍')+' '+r.likes+'</button>'+(isMineR?'<button class="comm-action" onclick="commDeleteReply(\''+r.id+'\')">🗑 Supprimer</button>':'')+'</div></div></div>';
       });
       html+='</div>';
     }
     // Reply form
-    html+='<div class="reply-form"><textarea id="reply-input" placeholder="Écris ta réponse..." maxlength="2000"></textarea><div class="reply-form-actions"><button class="btn btn-primary btn-sm" onclick="commSubmitReply()">Publier la réponse</button></div></div>';
+    html+='<div class="reply-form"><textarea id="reply-input" placeholder="Écris ta réponse..." maxlength="2000"></textarea>'+renderPhotoUploadRow('reply')+'<div class="reply-form-actions"><button class="btn btn-primary btn-sm" onclick="commSubmitReply()">Publier la réponse</button></div></div>';
     c.innerHTML=html;
+    renderPhotoPreviews('reply');
     return;
   }
 }
 
 let commNewPostOpen=false;
-function commToggleNewPost(){commNewPostOpen=!commNewPostOpen;renderCommunity()}
+function commToggleNewPost(){commNewPostOpen=!commNewPostOpen;if(!commNewPostOpen)clearPendingPhotos('post');renderCommunity()}
+function commCancelNewPost(){commNewPostOpen=false;clearPendingPhotos('post');renderCommunity()}
 async function commSubmitNewPost(){
   const title=document.getElementById('new-post-title').value.trim();
   const body=document.getElementById('new-post-body').value.trim();
   if(!title||title.length<5){alert('Titre trop court (minimum 5 caractères)');return}
   if(!body||body.length<10){alert('Corps trop court (minimum 10 caractères)');return}
-  const post=await createCommPost(commCurrentTheme,title,body);
-  if(!post) return;
+  // Disable submit button to prevent double-clicks
+  const btns=document.querySelectorAll('.comm-new-post-actions .btn');
+  btns.forEach(b=>{b.disabled=true});
+  let photos=[];
+  try{photos=await uploadAllPending('post')}catch(e){btns.forEach(b=>{b.disabled=false});return}
+  const post=await createCommPost(commCurrentTheme,title,body,photos);
+  if(!post){btns.forEach(b=>{b.disabled=false});return}
   commPosts.unshift(post);
   commPostCounts[commCurrentTheme]=(commPostCounts[commCurrentTheme]||0)+1;
   commNewPostOpen=false;
+  clearPendingPhotos('post');
   renderCommunity();
 }
 async function commSubmitReply(){
-  const body=document.getElementById('reply-input').value.trim();
-  if(!body||body.length<2){alert('Réponse trop courte');return}
-  const r=await createCommReply(commCurrentPost.id,body);
-  if(!r) return;
+  const ta=document.getElementById('reply-input');
+  const body=ta?ta.value.trim():'';
+  if((!body||body.length<2)&&pendingPhotos.reply.length===0){alert('Réponse vide');return}
+  const btn=document.querySelector('.reply-form-actions .btn');
+  if(btn) btn.disabled=true;
+  let photos=[];
+  try{photos=await uploadAllPending('reply')}catch(e){if(btn)btn.disabled=false;return}
+  const r=await createCommReply(commCurrentPost.id,body||'',photos);
+  if(!r){if(btn)btn.disabled=false;return}
   commReplies.push(r);
+  clearPendingPhotos('reply');
   renderCommunity();
 }
 async function commDeletePost(id){
@@ -2185,11 +2397,13 @@ async function commOpenPost(id){
 }
 function commBackToThemes(){
   commView='themes';commCurrentTheme=null;commCurrentPost=null;commPosts=[];commReplies=[];commNewPostOpen=false;
+  clearPendingPhotos('post');clearPendingPhotos('reply');
   renderCommunity();
 }
 async function commBackToTheme(){
   if(!commCurrentTheme){commBackToThemes();return}
   commView='theme';commCurrentPost=null;commReplies=[];
+  clearPendingPhotos('reply');
   renderCommunity();
   await loadCommPostsForTheme(commCurrentTheme);
   renderCommunity();
