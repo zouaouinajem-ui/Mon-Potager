@@ -1289,12 +1289,14 @@ document.addEventListener('click',e=>{if(!e.target.closest('.notif-panel')&&!e.t
 function fmtTime(ts){const d=Date.now()-ts;const h=Math.floor(d/3600000),da=Math.floor(d/86400000);if(da>0)return 'il y a '+da+'j';if(h>0)return 'il y a '+h+'h';const m=Math.floor(d/60000);if(m>0)return 'il y a '+m+'min';return "à l'instant"}
 
 function renderNotifs(){
-  const unread=notifications.filter(n=>!n.read).length;
+  const now=Date.now();
+  const due=notifications.filter(n=>n.time<=now);
+  const unread=due.filter(n=>!n.read).length;
   const badge=document.getElementById('nav-bell-badge');
   if(unread>0){badge.style.display='flex';badge.textContent=unread}else badge.style.display='none';
   const body=document.getElementById('notif-body');
-  if(!notifications.length){body.innerHTML='<div class="notif-empty">Aucune notification</div>';return}
-  body.innerHTML=notifications.map(n=>{
+  if(!due.length){body.innerHTML='<div class="notif-empty">Aucune notification</div>';return}
+  body.innerHTML=due.map(n=>{
     const ic={water:'💧',tip:'💡',alert:'⚠️',community:'👥'}[n.type]||'🔔';
     return '<div class="notif-item '+(!n.read?'unread':'')+'" onclick="markNotifRead(\''+n.id+'\')"><div class="notif-icon-box '+n.type+'">'+ic+'</div><div class="notif-content"><div class="notif-title">'+n.title+'</div><div class="notif-text">'+n.text+'</div><div class="notif-time">'+fmtTime(n.time)+'</div></div></div>';
   }).join('');
@@ -1842,6 +1844,198 @@ const ASSOC_BAD={
   pdt:['tomate','courgette','potiron','concombre'],
   ciboulette:['haricot','pois','feve']
 };
+
+// Distance critique par couple d'espèces. Format : { 'spA|spB': {dist:m, reason} }
+// Les paires sont stockées dans l'ordre alphabétique pour faciliter la recherche.
+const INCOMPAT_DISTANCES=[
+  // Mildiou aérien et tubercules (transmission croisée)
+  {a:'pdt',b:'tomate',dist:2.5,reason:'Mildiou : transmission croisée par spores aériennes et sol'},
+  {a:'pdt',b:'aubergine',dist:2,reason:'Mildiou et doryphores : famille des Solanacées'},
+  {a:'pdt',b:'poivron',dist:1.5,reason:'Mêmes ravageurs (doryphore)'},
+  // Allélopathie : substances inhibitrices
+  {a:'fenouil',b:'tomate',dist:2,reason:'Le fenouil sécrète des composés qui freinent la tomate'},
+  {a:'carotte',b:'fenouil',dist:1.5,reason:'Allélopathie : le fenouil ralentit la carotte'},
+  {a:'fenouil',b:'haricot',dist:1.5,reason:'Le fenouil inhibe les légumineuses'},
+  {a:'fenouil',b:'pois',dist:1.5,reason:'Le fenouil inhibe les légumineuses'},
+  // Légumineuses vs Allium (concurrence azote/soufre)
+  {a:'haricot',b:'oignon',dist:1,reason:'Concurrence racinaire (azote/soufre)'},
+  {a:'ail',b:'haricot',dist:1,reason:'L\'ail inhibe la fixation d\'azote des légumineuses'},
+  {a:'haricot',b:'poireau',dist:0.8,reason:'Concurrence racinaire'},
+  {a:'oignon',b:'pois',dist:1,reason:'Concurrence racinaire (azote/soufre)'},
+  {a:'ail',b:'pois',dist:1,reason:'Concurrence racinaire'},
+  {a:'pois',b:'poireau',dist:0.8,reason:'Concurrence racinaire'},
+  {a:'feve',b:'oignon',dist:1,reason:'Concurrence racinaire'},
+  {a:'ail',b:'feve',dist:1,reason:'Concurrence racinaire'},
+  {a:'feve',b:'poireau',dist:0.8,reason:'Concurrence racinaire'},
+  {a:'ciboulette',b:'haricot',dist:0.6,reason:'Concurrence légère'},
+  {a:'ciboulette',b:'feve',dist:0.6,reason:'Concurrence légère'},
+  {a:'ciboulette',b:'pois',dist:0.6,reason:'Concurrence légère'},
+  // Curcubitacées vs Solanacées (champignons croisés)
+  {a:'concombre',b:'pdt',dist:1.5,reason:'Risque de transmission de mildiou'},
+  {a:'courgette',b:'pdt',dist:1.5,reason:'Risque fongique partagé'},
+  {a:'pdt',b:'potiron',dist:1.5,reason:'Risque fongique partagé'},
+  // Choux : sols pauvres après légumineuses, gourmands en azote
+  {a:'ail',b:'chou',dist:0.8,reason:'L\'ail freine les choux'},
+  {a:'chou',b:'tomate',dist:1.5,reason:'Concurrents pour le sol et les nutriments'},
+  // Aromatiques méditerranéennes vs sols humides
+  {a:'basilic',b:'thym',dist:0.5,reason:'Besoins en eau opposés (basilic humide, thym sec)'},
+  {a:'basilic',b:'sauge',dist:0.5,reason:'Besoins en eau opposés'},
+  {a:'basilic',b:'romarin',dist:0.5,reason:'Besoins en eau opposés'},
+  {a:'mais',b:'tomate',dist:1.5,reason:'Compétition forte pour eau et azote'},
+  {a:'aneth',b:'carotte',dist:1,reason:'Risques d\'hybridation (même famille)'}
+];
+
+function getIncompatBetween(spA,spB){
+  if(!spA||!spB||spA===spB) return null;
+  const [a,b]=[spA,spB].sort();
+  return INCOMPAT_DISTANCES.find(r=>{
+    const [ra,rb]=[r.a,r.b].sort();
+    return ra===a && rb===b;
+  })||null;
+}
+
+// Niveau de gravité selon distance réelle vs critique
+function incompatLevel(actualDist,criticalDist){
+  if(actualDist>=criticalDist) return null;
+  if(actualDist<criticalDist*0.5) return 'critical';
+  if(actualDist<criticalDist*0.85) return 'warning';
+  return 'info';
+}
+
+// =========== PLANT CALENDARS (notifications saisonnières) ===========
+// Pour chaque espèce, calendrier de notifications relatif à la date de plantation/semis.
+// Format : { species: [ {day: relative_days_from_planting, urgency: 'info'|'important'|'critical', icon, title, text} ] }
+// Niveaux d'urgence :
+// - info     : conseil utile mais non bloquant (✨)
+// - important: action recommandée (⚠️)
+// - critical : action obligatoire pour la santé de la plante (🚨)
+const PLANT_CALENDARS={
+  tomate:[
+    {day:0,urgency:'info',icon:'🌱',title:'Tomate plantée',text:'Bonne culture ! Arrose abondamment ce premier jour pour assurer la reprise.'},
+    {day:1,urgency:'important',icon:'💧',title:'Arrosage de reprise',text:'Maintiens le sol bien frais. Arrose au pied, jamais sur le feuillage.'},
+    {day:7,urgency:'info',icon:'🌾',title:'Pailler le pied',text:'Mets une couche de paille (5-10 cm) au pied pour garder l\'humidité et limiter les mauvaises herbes.'},
+    {day:14,urgency:'important',icon:'🪴',title:'Tuteurage à prévoir',text:'Plante un tuteur solide (1,5 m mini) si pas encore fait. Attache la tige avec un lien souple.'},
+    {day:21,urgency:'critical',icon:'✂️',title:'Premiers gourmands à enlever',text:'Surveille les pousses qui apparaissent à l\'aisselle des feuilles : pince-les à la main quand elles font 5 cm. Sinon ta plante se disperse et produit moins.'},
+    {day:28,urgency:'important',icon:'✂️',title:'Taille des gourmands (régulier)',text:'Vérifie 1 à 2 fois par semaine. Tu reconnais un gourmand : pousse entre la tige principale et une branche.'},
+    {day:35,urgency:'info',icon:'🌸',title:'Premières fleurs',text:'Les premières fleurs apparaissent. Continue à pincer les gourmands. Évite l\'arrosage excessif (fleurs qui tombent).'},
+    {day:45,urgency:'important',icon:'🍅',title:'Premiers fruits noués',text:'Les fruits commencent à se former. Augmente légèrement les arrosages, mais toujours au pied.'},
+    {day:50,urgency:'critical',icon:'🚨',title:'Surveille le mildiou',text:'Période à risque (été humide). Inspecte le dessous des feuilles : taches brunes = mildiou. Préventif : purin de prêle ou bouillie bordelaise.'},
+    {day:60,urgency:'info',icon:'⚖️',title:'Récolte qui démarre',text:'Premières tomates mûres ! Cueille au fur et à mesure pour stimuler la production. Pense à enregistrer tes récoltes.'},
+    {day:75,urgency:'important',icon:'✂️',title:'Étêtage à prévoir',text:'Quand la plante atteint 1,5 m ou que 5-6 grappes sont formées, coupe la cime pour concentrer la sève sur les fruits.'},
+    {day:120,urgency:'info',icon:'🍅',title:'Récolte à son apogée',text:'Tu devrais récolter régulièrement. Cueille les fruits dès qu\'ils sont colorés.'}
+  ],
+  courgette:[
+    {day:0,urgency:'info',icon:'🌱',title:'Courgette plantée',text:'Arrose abondamment et paille généreusement le pied. Une courgette adulte boit beaucoup.'},
+    {day:3,urgency:'important',icon:'💧',title:'Arrosage régulier',text:'Sol toujours frais. La courgette est très gourmande. Au pied, jamais sur les feuilles.'},
+    {day:14,urgency:'info',icon:'🌸',title:'Premières fleurs mâles',text:'Les fleurs mâles (sans renflement) apparaissent en premier. Patiente : les femelles arrivent dans 7-10 jours.'},
+    {day:25,urgency:'info',icon:'🌸',title:'Fleurs femelles',text:'Petit fruit visible derrière la fleur = femelle. La pollinisation est faite par les abeilles. Plante des fleurs nectarifères à proximité si peu de butineurs.'},
+    {day:35,urgency:'critical',icon:'🥒',title:'Première récolte',text:'Récolte les fruits jeunes (15-25 cm) pour la saveur et stimuler la production. Plus tu cueilles, plus elle produit.'},
+    {day:45,urgency:'important',icon:'⚠️',title:'Surveille l\'oïdium',text:'Poudre blanche sur les feuilles ? Coupe les feuilles atteintes, traite au lait dilué (1L lait + 9L eau) ou soufre.'},
+    {day:60,urgency:'info',icon:'⚖️',title:'Récolte continue',text:'Vérifie tous les 2 jours : une courgette grandit vite ! Au-delà de 30 cm, elle devient farineuse.'},
+    {day:90,urgency:'important',icon:'🌿',title:'Pic de production',text:'Tu es en pleine récolte. Pense à donner ! Une seule plante peut produire 10 kg sur la saison.'}
+  ],
+  concombre:[
+    {day:0,urgency:'info',icon:'🌱',title:'Concombre planté',text:'Arrosage généreux à la plantation. Le concombre adore l\'humidité du sol.'},
+    {day:3,urgency:'important',icon:'💧',title:'Arrosage abondant',text:'Sol toujours frais, jamais sec. Variation = goût amer.'},
+    {day:10,urgency:'important',icon:'🪴',title:'Tuteurage / palissage',text:'Le concombre est une liane : guide-le sur un treillis ou des ficelles. La culture verticale économise la place et aère le feuillage.'},
+    {day:25,urgency:'info',icon:'✂️',title:'Pincer la tige principale',text:'Quand 5-6 vraies feuilles, pince le bout pour stimuler les ramifications latérales (où poussent les fruits).'},
+    {day:35,urgency:'info',icon:'🌸',title:'Fleurs',text:'Première floraison. Les variétés autofertiles n\'ont pas besoin de pollinisation.'},
+    {day:50,urgency:'critical',icon:'🥒',title:'Première récolte',text:'Cueille jeunes (20-25 cm) pour la finesse. Récolte tous les 2-3 jours sinon ils deviennent jaunes et amers.'},
+    {day:60,urgency:'important',icon:'⚠️',title:'Oïdium fréquent',text:'Surveille les feuilles. À traiter dès les premiers signes au lait dilué ou soufre.'},
+    {day:90,urgency:'info',icon:'⚖️',title:'Production en continu',text:'Récolte régulière jusqu\'aux premières fraîcheurs.'}
+  ],
+  poivron:[
+    {day:0,urgency:'info',icon:'🌱',title:'Poivron planté',text:'Arrose à la plantation. Protège du vent et du froid les premiers jours.'},
+    {day:5,urgency:'important',icon:'💧',title:'Arrosage régulier',text:'Sans excès. Le poivron supporte mal les sols détrempés.'},
+    {day:21,urgency:'info',icon:'🪴',title:'Tuteurage léger',text:'Branches fragiles, surtout chargées de fruits. Un petit tuteur de 80 cm suffit.'},
+    {day:35,urgency:'info',icon:'🌸',title:'Floraison',text:'Premières fleurs blanches. Maintiens un arrosage régulier pour favoriser la nouaison.'},
+    {day:60,urgency:'important',icon:'🌶️',title:'Premiers fruits verts',text:'Tu peux récolter au stade vert (saveur végétale) ou attendre la maturité couleur (rouge/jaune, plus sucré).'},
+    {day:80,urgency:'info',icon:'🌶️',title:'Maturité couleur',text:'Le poivron change de couleur (1-2 semaines). C\'est plus long mais le goût est bien meilleur.'},
+    {day:120,urgency:'info',icon:'⚖️',title:'Récolte qui s\'allonge',text:'Production étalée jusqu\'aux premières gelées.'}
+  ],
+  aubergine:[
+    {day:0,urgency:'info',icon:'🌱',title:'Aubergine plantée',text:'Très frileuse. Si nuits <15°C, protège avec un voile la première semaine.'},
+    {day:5,urgency:'important',icon:'💧',title:'Arrosage régulier',text:'Sol jamais sec. Paillage indispensable.'},
+    {day:14,urgency:'important',icon:'🪴',title:'Tuteurage',text:'Les fruits sont lourds. Un tuteur solide est obligatoire.'},
+    {day:30,urgency:'info',icon:'✂️',title:'Pincement utile',text:'Coupe le bourgeon principal au-dessus de la 1ère fleur. Garde 4-5 branches principales.'},
+    {day:45,urgency:'important',icon:'⚠️',title:'Surveille les doryphores',text:'Insecte rayé orange/noir. Récolte à la main et écrase. Sinon, traite au Bacillus thuringiensis.'},
+    {day:70,urgency:'critical',icon:'🍆',title:'Premières aubergines',text:'Cueille quand brillantes et fermes. Si la peau devient terne, c\'est trop tard (graines et amertume).'},
+    {day:100,urgency:'info',icon:'⚖️',title:'Récolte échelonnée',text:'Production jusqu\'aux premières gelées.'}
+  ],
+  haricot:[
+    {day:0,urgency:'info',icon:'🌱',title:'Haricots semés',text:'Les graines lèvent en 7-10 jours. Inutile d\'arroser tant que pas levé (risque de pourriture).'},
+    {day:7,urgency:'info',icon:'🌱',title:'Levée',text:'Les premiers cotylédons sortent. Maintenant tu peux arroser modérément.'},
+    {day:21,urgency:'important',icon:'🪴',title:'Tuteurage si à rames',text:'Pour les haricots à rames, plante des tuteurs de 2 m (canne, ficelle...) avant que les plants atteignent 30 cm.'},
+    {day:30,urgency:'info',icon:'🌾',title:'Buttage léger',text:'Forme une butte de terre au pied pour solidifier les plants face au vent.'},
+    {day:50,urgency:'info',icon:'🌸',title:'Floraison',text:'Petites fleurs blanches/violettes. Arrose plus régulièrement à ce stade pour favoriser la nouaison.'},
+    {day:70,urgency:'critical',icon:'⚖️',title:'Première récolte',text:'Cueille les gousses jeunes et tendres (avant que les graines ne renflent). Plus tu cueilles, plus elle produit.'},
+    {day:90,urgency:'info',icon:'⚖️',title:'Récolte continue',text:'Cueille tous les 3-4 jours pour stimuler la production.'}
+  ],
+  pdt:[
+    {day:0,urgency:'info',icon:'🌱',title:'Pommes de terre plantées',text:'Pas d\'arrosage tout de suite. La plante puise dans le tubercule.'},
+    {day:21,urgency:'important',icon:'🌾',title:'Premier buttage',text:'Quand les feuilles font 20 cm, ramène la terre autour des tiges. Augmente la récolte (+20%).'},
+    {day:35,urgency:'important',icon:'🌾',title:'Deuxième buttage',text:'Refais un buttage 2-3 semaines après le premier.'},
+    {day:50,urgency:'critical',icon:'🚨',title:'Surveille le mildiou',text:'Taches brunes sur feuilles = mildiou. Couper immédiatement les feuilles atteintes. Bouillie bordelaise en préventif.'},
+    {day:60,urgency:'important',icon:'🐛',title:'Doryphores',text:'Larves rouges sur feuilles : ramasser à la main. Traitement bio possible (Bacillus thuringiensis).'},
+    {day:70,urgency:'info',icon:'🌸',title:'Floraison',text:'Les fleurs apparaissent. Tu peux récolter des primeurs déjà à ce stade.'},
+    {day:90,urgency:'critical',icon:'🥔',title:'Récolte des primeurs',text:'Si tu veux des pommes de terre nouvelles, c\'est maintenant. Pour la conservation, attends que le feuillage jaunisse.'},
+    {day:120,urgency:'important',icon:'🥔',title:'Récolte de conservation',text:'Feuillage jaune et sec = c\'est le moment. Arrache par temps sec, fait sécher 1h au sol, stocke à l\'obscurité.'}
+  ],
+  carotte:[
+    {day:0,urgency:'info',icon:'🌱',title:'Carottes semées',text:'Garde le sol toujours humide jusqu\'à la levée (3 semaines). Si possible voile d\'ombrage en été.'},
+    {day:21,urgency:'critical',icon:'✂️',title:'Premier éclaircissage',text:'Tu DOIS éclaircir : ne garde qu\'un plant tous les 5 cm. Sinon racines minuscules et fourchues. Étape clé !'},
+    {day:40,urgency:'important',icon:'✂️',title:'Deuxième éclaircissage',text:'Garde un plant tous les 8-10 cm pour des belles racines.'},
+    {day:50,urgency:'important',icon:'⚠️',title:'Mouche de la carotte',text:'Insecte qui pond sur les racines. Préventif : association avec poireaux/oignons (parfum brouille la mouche).'},
+    {day:70,urgency:'info',icon:'🥕',title:'Premières récoltes',text:'Tu peux récolter les premières (jeunes carottes très sucrées). Tire en aérant le sol pour ne pas casser.'},
+    {day:90,urgency:'info',icon:'⚖️',title:'Récolte échelonnée',text:'Récolte au fur et à mesure. Conservation possible en silo de sable jusqu\'au printemps.'}
+  ],
+  salade:[
+    {day:0,urgency:'info',icon:'🌱',title:'Salade plantée',text:'Arrose à la plantation. Les premiers jours sont délicats : ombre légère si soleil fort.'},
+    {day:5,urgency:'important',icon:'💧',title:'Arrosage régulier',text:'Sol toujours frais. Une salade qui sèche devient amère.'},
+    {day:14,urgency:'important',icon:'🐌',title:'Surveille les limaces',text:'Cendres ou coquilles d\'œufs autour des plants. Pièges à bière efficaces.'},
+    {day:30,urgency:'info',icon:'🥬',title:'Pommaison',text:'Le coeur se forme. Continue à arroser au pied. Si elle file en hauteur (montée en graine), c\'est qu\'il fait trop chaud — récolte rapidement.'},
+    {day:50,urgency:'critical',icon:'⚖️',title:'À récolter',text:'Récolte le matin tôt pour la fraîcheur. Coupe au ras du sol ou cueille feuille par feuille pour les variétés à couper.'}
+  ],
+  oignon:[
+    {day:0,urgency:'info',icon:'🌱',title:'Oignons plantés',text:'Pointe vers le haut, juste enfoncé. Arrose modérément.'},
+    {day:7,urgency:'info',icon:'🌱',title:'Reprise',text:'Les feuilles vertes apparaissent. Désherbe régulièrement (l\'oignon n\'aime pas la concurrence).'},
+    {day:60,urgency:'info',icon:'🌿',title:'Bulbes en formation',text:'Les feuilles deviennent denses. Réduis les arrosages pour éviter la pourriture.'},
+    {day:100,urgency:'critical',icon:'🌾',title:'Stop arrosage',text:'15 jours avant la récolte, arrête complètement d\'arroser. Indispensable pour la conservation.'},
+    {day:115,urgency:'critical',icon:'🧅',title:'Récolte',text:'Quand les fanes jaunissent et tombent, arrache. Fais sécher au sol 2-3 jours puis stocke en cagette aérée à l\'obscurité.'}
+  ],
+  ail:[
+    {day:0,urgency:'info',icon:'🌱',title:'Ail planté',text:'Caïeu pointe vers le haut, 3 cm sous terre. Arrosage léger uniquement.'},
+    {day:30,urgency:'info',icon:'🌿',title:'Pousses vertes',text:'Les feuilles sortent. Désherbe sans déranger les bulbes.'},
+    {day:120,urgency:'important',icon:'🌸',title:'Couper les hampes florales',text:'Si l\'ail forme une fleur (boule au sommet), coupe-la. Sinon le bulbe reste petit.'},
+    {day:150,urgency:'critical',icon:'🌾',title:'Stop arrosage',text:'15 jours avant récolte, arrête tout arrosage. Indispensable pour la conservation.'},
+    {day:165,urgency:'critical',icon:'🧄',title:'Récolte',text:'Feuilles jaunes/sèches = c\'est le moment. Arrache, fais sécher en bottes pendues 2 semaines à l\'ombre.'}
+  ],
+  basilic:[
+    {day:0,urgency:'info',icon:'🌱',title:'Basilic planté',text:'Très frileux ! Si nuits <15°C, protège ou rentre. Arrosage doux.'},
+    {day:7,urgency:'important',icon:'💧',title:'Arrosage régulier',text:'Sol toujours frais, mais jamais détrempé. Au pied uniquement, pas sur les feuilles.'},
+    {day:21,urgency:'critical',icon:'✂️',title:'Premier pincement',text:'Pince les sommités au-dessus de la 4ème feuille pour qu\'il se ramifie. Sans ça, il file en hauteur et fait peu de feuilles.'},
+    {day:35,urgency:'important',icon:'✂️',title:'Pincer les fleurs',text:'Dès qu\'une fleur apparaît, pince ! Si tu laisses fleurir, les feuilles deviennent amères et la plante meurt vite.'},
+    {day:50,urgency:'info',icon:'🌿',title:'Récolte continue',text:'Récolte par pincement régulier (jamais arracher la plante). Plus tu pinces, plus il pousse.'}
+  ],
+  fraise:[
+    {day:0,urgency:'info',icon:'🌱',title:'Fraisiers plantés',text:'Le coeur (collet) doit être au ras du sol, ni enterré ni au-dessus. Arrose abondamment.'},
+    {day:7,urgency:'important',icon:'💧',title:'Arrosage régulier',text:'Sol toujours frais. Paillage de paille/feuilles pour garder l\'humidité et protéger les fruits.'},
+    {day:21,urgency:'info',icon:'🌸',title:'Premières fleurs',text:'Si plantés tôt en saison, premières fleurs. Protège du gel tardif (voile).'},
+    {day:45,urgency:'important',icon:'🐌',title:'Surveille limaces et oiseaux',text:'Filet anti-oiseaux dès les premiers fruits roses. Pièges à limaces autour.'},
+    {day:60,urgency:'critical',icon:'🍓',title:'Première récolte',text:'Cueille les fruits bien rouges, le matin. Ne pas laver avant consommation pour préserver l\'arôme.'},
+    {day:90,urgency:'info',icon:'✂️',title:'Stolons',text:'Les longs filaments avec petits plants au bout. Tu peux les couper (pour vigueur du plant mère) ou les enraciner pour multiplier ta culture.'}
+  ]
+};
+
+// Calendrier par défaut quand l'espèce n'est pas dans la table dédiée
+const DEFAULT_CALENDAR=[
+  {day:0,urgency:'info',icon:'🌱',title:'Plantation',text:'Arrose abondamment à la plantation pour favoriser la reprise.'},
+  {day:1,urgency:'important',icon:'💧',title:'Arrosage de reprise',text:'Maintiens le sol frais les premiers jours. Au pied, pas sur les feuilles.'},
+  {day:14,urgency:'info',icon:'🌾',title:'Pailler le pied',text:'Couche de paille pour conserver l\'humidité et limiter les mauvaises herbes.'},
+  {day:30,urgency:'info',icon:'🌱',title:'Surveillance',text:'Inspecte régulièrement : ravageurs, maladies, besoins en eau. Adapte selon la météo.'},
+  {day:60,urgency:'info',icon:'⚖️',title:'Suivi de croissance',text:'Plante normalement bien installée. Continue à observer et arroser selon les besoins.'}
+];
+
 const TYPE_LABELS={'legumes-fruits':{name:'Légumes-fruits',icon:'🍅'},'feuilles':{name:'Feuilles',icon:'🥬'},'racines':{name:'Racines',icon:'🥕'},'aromatiques':{name:'Aromatiques',icon:'🌿'},'fruits':{name:'Petits fruits',icon:'🍓'},'fruitiers':{name:'Fruitiers',icon:'🌳'},'fleurs':{name:'Fleurs',icon:'🌸'}};
 const SHADE_LABELS={'plein-soleil':'☀️ Plein soleil','mi-ombre':'⛅ Mi-ombre','ombre-partielle':'🌥️ Ombre partielle','ombre':'🌑 Ombragée'};
 
@@ -1945,17 +2139,36 @@ function pwStep5(){
     const free=cells-taken;
     const speciesInZone=[...new Set(myPlants.filter(c=>c.zoneId===z.id).map(c=>speciesOf(c.plantId)))];
     const goodList=ASSOC_GOOD[sp]||[];
-    const badList=ASSOC_BAD[sp]||[];
     const goods=speciesInZone.filter(s=>goodList.includes(s));
-    const bads=speciesInZone.filter(s=>badList.includes(s));
-    let warn='';let good='';
-    if(bads.length) warn='<div class="zp-warn">⚠️ Mauvaise association avec : '+bads.join(', ')+'</div>';
-    if(goods.length) good='<div class="zp-good">✓ Bonne association avec : '+goods.join(', ')+'</div>';
-    if(z.shade!==p.sun&&!(z.shade==='plein-soleil'&&p.sun==='plein-soleil')) {
-      if(p.sun==='plein-soleil'&&z.shade!=='plein-soleil') warn+='<div class="zp-warn">⚠️ Cette plante préfère le plein soleil</div>';
+    // Compute distance-aware incompatibility warnings: for each species in zone, get rule and check if zone is big enough to keep distance
+    const zoneDiagonal=Math.sqrt(z.w*z.w+z.h*z.h);
+    const incompats=[];
+    speciesInZone.forEach(ocSp=>{
+      const rule=getIncompatBetween(sp,ocSp);
+      if(!rule) return;
+      const oc=myPlants.find(c=>c.zoneId===z.id&&speciesOf(c.plantId)===ocSp);
+      const ocPlant=oc?plantById(oc.plantId):null;
+      const ocName=ocPlant?ocPlant.name:ocSp;
+      // Three cases : zone too small (critical), feasible with care (warn), comfortable (info)
+      let level='warn';
+      if(zoneDiagonal<rule.dist*0.7) level='critical';
+      else if(zoneDiagonal>=rule.dist*1.5) level='ok';
+      incompats.push({otherName:ocName,reason:rule.reason,dist:rule.dist,level});
+    });
+    let warn='',good='';
+    incompats.forEach(ic=>{
+      if(ic.level==='critical') warn+='<div class="zp-warn">🚨 Incompatible avec '+ic.otherName+' — distance impossible dans cette zone (besoin '+ic.dist+' m mini)</div>';
+      else if(ic.level==='warn') warn+='<div class="zp-warn">⚠️ Attention près des '+ic.otherName+' : distance ≥'+ic.dist+' m recommandée ('+ic.reason+')</div>';
+      else warn+='<div class="zp-warn" style="background:#fffbef;color:#a06820">ℹ️ Présence de '+ic.otherName+' : place tes plants à au moins '+ic.dist+' m</div>';
+    });
+    if(goods.length){
+      const goodNames=goods.map(s=>{const c=myPlants.find(c=>c.zoneId===z.id&&speciesOf(c.plantId)===s);const pl=c?plantById(c.plantId):null;return pl?pl.name:s});
+      good='<div class="zp-good">✓ Bonne association avec : '+goodNames.join(', ')+'</div>';
     }
+    if(p.sun==='plein-soleil'&&z.shade!=='plein-soleil') warn+='<div class="zp-warn">⚠️ Cette plante préfère le plein soleil</div>';
     const sel=pwState.zoneId===z.id;
-    const cls=(sel?'selected':'')+(bads.length?' bad':'');
+    const hasCritical=incompats.some(ic=>ic.level==='critical');
+    const cls=(sel?'selected':'')+(hasCritical?' bad':'');
     html+='<div class="zp-card '+cls+'" onclick="pwPickZone(\''+z.id+'\')"><div class="zp-name">'+z.name+'</div><div class="zp-meta">'+z.w+'×'+z.h+'m · '+(SHADE_LABELS[z.shade]||z.shade)+'</div><div class="zp-meta">Espace libre : '+free+'/'+cells+' cellules</div>'+good+warn+'</div>';
   });
   html+='</div>';
@@ -2017,17 +2230,69 @@ function pwToggleCell(r,c){
   if(pwState.placements.length>=pwState.qty){alert('Tu as déjà placé tes '+pwState.qty+' plants. Décoche d\'abord ou augmente la quantité.');return}
   const p=plantById(pwState.plantId);
   const minDist=Math.max(1,Math.round(p.spacing/100/0.4));
+
+  // 1) Check spacing with same-species placements (current cultivation)
   let tooClose=false;
   for(const pl of pwState.placements){
     const d=Math.max(Math.abs(pl[0]-r),Math.abs(pl[1]-c));
     if(d<minDist){tooClose=true;break}
   }
   if(tooClose){
-    pendingForce={r,c};
+    pendingForce={r,c,reason:'spacing'};
     document.getElementById('force-text').innerHTML='L\'espacement recommandé pour <strong>'+p.name+'</strong> est de <strong>'+p.spacing+' cm</strong>.<br><br>Forcer le placement peut réduire le rendement et favoriser les maladies, mais reste possible.';
     document.getElementById('force-overlay').classList.add('open');
     return;
   }
+
+  // 2) Check incompatibility with other cultures in this zone
+  const sp=p.species;
+  const otherCultures=myPlants.filter(c=>c.zoneId===pwState.zoneId);
+  let worstIncompat=null; // {level, dist, criticalDist, otherSpecies, reason, otherName}
+  for(const oc of otherCultures){
+    const ocSp=speciesOf(oc.plantId);
+    const rule=getIncompatBetween(sp,ocSp);
+    if(!rule) continue;
+    const ocPlant=plantById(oc.plantId);
+    // Find shortest distance from (r,c) to any of the other culture's placements (in metres)
+    let minDistMeters=Infinity;
+    for(const opl of (oc.placements||[])){
+      const dCells=Math.sqrt(Math.pow(opl[0]-r,2)+Math.pow(opl[1]-c,2));
+      const dM=dCells*0.4;
+      if(dM<minDistMeters) minDistMeters=dM;
+    }
+    const lvl=incompatLevel(minDistMeters,rule.dist);
+    if(!lvl) continue;
+    // Track worst (critical > warning > info)
+    const order={critical:3,warning:2,info:1};
+    if(!worstIncompat||order[lvl]>order[worstIncompat.level]){
+      worstIncompat={level:lvl,dist:minDistMeters,criticalDist:rule.dist,otherSpecies:ocSp,otherName:ocPlant?ocPlant.name:ocSp,reason:rule.reason};
+    }
+  }
+
+  if(worstIncompat){
+    if(worstIncompat.level==='critical'){
+      pendingForce={r,c,reason:'incompat'};
+      document.getElementById('force-text').innerHTML=
+        '<strong>🚨 Incompatibilité forte avec '+worstIncompat.otherName+'</strong><br><br>'+
+        '<em>'+worstIncompat.reason+'</em><br><br>'+
+        'Distance entre les deux : <strong>'+worstIncompat.dist.toFixed(1)+' m</strong> · recommandée : <strong>'+worstIncompat.criticalDist+' m</strong> minimum.<br><br>'+
+        'Forcer le placement risque sérieusement la santé de tes deux cultures.';
+      document.getElementById('force-overlay').classList.add('open');
+      return;
+    }
+    if(worstIncompat.level==='warning'){
+      pendingForce={r,c,reason:'incompat-warn'};
+      document.getElementById('force-text').innerHTML=
+        '<strong>⚠️ Association à risque avec '+worstIncompat.otherName+'</strong><br><br>'+
+        '<em>'+worstIncompat.reason+'</em><br><br>'+
+        'Distance : <strong>'+worstIncompat.dist.toFixed(1)+' m</strong> · idéal : <strong>'+worstIncompat.criticalDist+' m</strong>.<br><br>'+
+        'Tu peux planter ici, mais surveille les maladies de plus près.';
+      document.getElementById('force-overlay').classList.add('open');
+      return;
+    }
+    // info-level: silent placement, no warning
+  }
+
   pwState.placements.push([r,c,false]);
   pwRenderPlan();
 }
@@ -2047,18 +2312,44 @@ async function pwSave(){
   if(document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
 }
 
+// Map calendar urgency → notif `type` (used for icon/color in UI)
+function urgencyToType(u){
+  if(u==='critical') return 'alert';
+  if(u==='important') return 'water'; // reuses the orange water-style icon
+  return 'tip';
+}
+
 async function generatePlantAlerts(culture){
   const p=plantById(culture.plantId);
   const z=zones.find(x=>x.id===culture.zoneId);
+  const sp=p.species;
   const baseTime=culture.date;
-  const seeds=[
-    {title:'🌱 '+p.name+' planté'+(culture.qty>1?'s':''),text:'Tu viens de planter '+culture.qty+' '+p.name+' dans "'+(z?z.name:'?')+'". Bonne culture !',time:baseTime,read:false,type:'tip'},
-    {title:'💧 '+p.name+' — premier arrosage',text:'Arrose bien après plantation pour favoriser la reprise. Maintiens le sol frais les premiers jours.',time:baseTime+60000,read:false,type:'water'},
-    culture.method==='semis'?{title:'🌱 '+p.name+' — surveille la levée',text:'Garde le sol humide. La levée prend généralement 7-14 jours selon la variété.',time:baseTime+120000,read:false,type:'tip'}:{title:'🪴 '+p.name+' — reprise',text:'Surveille la reprise pendant 1-2 semaines. Arrose régulièrement sans excès.',time:baseTime+120000,read:false,type:'tip'}
-  ];
-  for(const n of seeds){
-    const saved=await saveNotifInsert(n);
-    if(saved) notifications.unshift(saved);
+  const calendar=PLANT_CALENDARS[sp]||DEFAULT_CALENDAR;
+  const zoneName=z?z.name:'?';
+  // Welcome notif (immediate, info)
+  const welcome={
+    title:'🌱 '+culture.qty+' '+p.name+(culture.qty>1?'s plantés':' planté'),
+    text:'Dans "'+zoneName+'". '+(culture.method==='semis'?'Surveille la levée pendant 1 à 3 semaines.':'Bonne culture !'),
+    time:baseTime,read:false,type:'tip'
+  };
+  const saved=await saveNotifInsert(welcome);
+  if(saved) notifications.unshift(saved);
+  // Calendar entries — schedule_for set on relative day
+  for(const entry of calendar){
+    if(entry.day===0) continue; // already covered by welcome
+    const when=baseTime+entry.day*24*3600*1000;
+    const urgencyMark=entry.urgency==='critical'?'🚨 ':entry.urgency==='important'?'⚠️ ':'';
+    const fullTitle=urgencyMark+entry.icon+' '+p.name+' — '+entry.title;
+    const fullText=entry.text+'\n\nZone : '+zoneName+'.';
+    const notif={
+      title:fullTitle,
+      text:fullText,
+      time:when,
+      read:false,
+      type:urgencyToType(entry.urgency)
+    };
+    const s=await saveNotifInsert(notif);
+    if(s) notifications.unshift(s);
   }
 }
 
