@@ -2,8 +2,26 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MonPotager</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2d5a27">
+<meta name="description" content="Plante, suis et récolte ton potager. Conseils IA, sondes connectées, communauté de jardiniers.">
+
+<!-- iOS PWA support -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="MonPotager">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+
+<!-- Open Graph (partage social) -->
+<meta property="og:title" content="MonPotager">
+<meta property="og:description" content="Plante, suis et récolte ton potager. Conseils IA, sondes connectées, communauté de jardiniers.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="icon-512.png">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--soil:#3d2b1f;--leaf:#2d5a27;--leaf-light:#4a8c42;--leaf-pale:#e8f5e3;--sun:#e8a020;--sun-light:#fdf3e0;--cream:#faf8f4;--stone:#f0ebe3;--stone-dark:#c8bfb0;--text:#1a1208;--text-mid:#5c4a35;--text-soft:#9b8a78;--danger:#c0392b;--danger-light:#fdf0ee;--water:#2980b9;--water-light:#eaf4fb;--gold:#d4a017;--gold-light:#faf2dd;--shadow:0 4px 24px rgba(30,18,8,.08);--shadow-lg:0 12px 40px rgba(30,18,8,.12)}
@@ -403,6 +421,17 @@ nav{background:var(--soil);padding:0 16px;display:flex;align-items:center;positi
 .plan-cell.has.forced{border-color:var(--gold);background:var(--gold-light)}
 .plan-cell.too-close{border-color:var(--danger);background:#fde8e6}
 .plan-cell.taken{border-style:solid;border-color:var(--text-soft);cursor:not-allowed;opacity:.65}
+.plan-cell.alert-info{box-shadow:0 0 0 2px #f4c43055 inset}
+.plan-cell.alert-warning{box-shadow:0 0 0 2px #e88a20cc inset}
+.plan-cell.alert-critical{box-shadow:0 0 0 2px var(--danger) inset;animation:pulse-alert 1.6s ease-in-out infinite}
+@keyframes pulse-alert{0%,100%{box-shadow:0 0 0 2px var(--danger) inset}50%{box-shadow:0 0 0 4px var(--danger) inset,0 0 14px rgba(192,57,43,.4)}}
+.cell-alert{position:absolute;top:-2px;right:-2px;width:20px;height:20px;background:white;border-radius:50%;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.18);z-index:2;line-height:1}
+.cell-alert:hover{transform:scale(1.15)}
+.plan-cell{position:relative}
+.auto-place-bar{display:flex;gap:8px;margin-bottom:14px;padding:12px;background:linear-gradient(135deg,#f0e6f5,#fdf3e0);border-radius:14px;border:1.5px dashed #c9a4d6}
+.auto-place-btn{flex:1;justify-content:center;background:linear-gradient(135deg,#a460c2,#8e44ad);color:white;border:none;font-weight:600;box-shadow:0 4px 14px rgba(142,68,173,.3)}
+.auto-place-btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(142,68,173,.4)}
+.auto-clear-btn{flex:0 0 auto;min-width:120px;justify-content:center}
 .plan-cell-emoji{font-size:18px;line-height:1}
 
 /* Footer buttons in modal */
@@ -572,6 +601,14 @@ nav{background:var(--soil);padding:0 16px;display:flex;align-items:center;positi
 .zw-shade-hours{font-size:11px;color:var(--text-soft)}
 
 .zw-orient-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
+.zw-soil-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.zw-soil-card{background:white;border:1.5px solid var(--stone-dark);border-radius:12px;padding:10px 12px;cursor:pointer;display:flex;align-items:flex-start;gap:8px;transition:all .15s}
+.zw-soil-card:hover{border-color:var(--leaf-light)}
+.zw-soil-card.selected{border-color:var(--leaf);background:var(--leaf-pale)}
+.zw-soil-emoji{font-size:22px;line-height:1.1;flex-shrink:0}
+.zw-soil-content{flex:1;min-width:0}
+.zw-soil-name{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--soil)}
+.zw-soil-desc{font-size:11px;color:var(--text-soft);line-height:1.3;margin-top:2px}
 .zw-orient-pill{background:white;border:1.5px solid var(--stone-dark);border-radius:10px;padding:10px 0;cursor:pointer;text-align:center;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:var(--text-mid);transition:all .12s}
 .zw-orient-pill:hover{border-color:var(--leaf-light)}
 .zw-orient-pill.selected{background:var(--leaf);color:white;border-color:var(--leaf)}
@@ -790,6 +827,31 @@ nav{background:var(--soil);padding:0 16px;display:flex;align-items:center;positi
 .dev-empty-icon{font-size:48px;margin-bottom:12px;opacity:.5}
 .dev-empty-title{font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--soil);margin-bottom:6px}
 .dev-empty-text{font-size:13px;color:var(--text-soft);line-height:1.5;margin-bottom:18px;max-width:440px;margin-left:auto;margin-right:auto}
+/* PWA install banner */
+#pwa-install-banner{position:fixed;left:50%;bottom:-200px;transform:translateX(-50%);background:white;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:14px 16px;display:flex;align-items:center;gap:12px;z-index:300;max-width:calc(100vw - 32px);width:380px;border:1px solid rgba(200,191,176,.4);transition:bottom .35s cubic-bezier(.4,0,.2,1)}
+#pwa-install-banner.show{bottom:20px}
+@supports(padding:max(0px)){#pwa-install-banner.show{bottom:max(20px,env(safe-area-inset-bottom))}}
+.pwa-install-icon{font-size:32px;flex-shrink:0}
+.pwa-install-text{flex:1;min-width:0}
+.pwa-install-title{font-family:'Fraunces',serif;font-size:14px;font-weight:600;color:var(--soil);line-height:1.2}
+.pwa-install-sub{font-size:11px;color:var(--text-soft);margin-top:2px}
+.pwa-install-btn{background:var(--leaf);color:white;border:none;padding:9px 16px;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap;transition:background .15s}
+.pwa-install-btn:hover{background:var(--leaf-light)}
+.pwa-install-close{background:none;border:none;color:var(--text-soft);font-size:16px;cursor:pointer;padding:6px;line-height:1;flex-shrink:0;border-radius:6px;transition:background .12s}
+.pwa-install-close:hover{background:var(--cream)}
+
+#pwa-update-banner{position:fixed;left:50%;top:-100px;transform:translateX(-50%);background:var(--leaf);color:white;border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.25);padding:12px 18px;display:flex;align-items:center;gap:14px;z-index:300;transition:top .35s cubic-bezier(.4,0,.2,1)}
+#pwa-update-banner.show{top:20px}
+@supports(padding:max(0px)){#pwa-update-banner.show{top:max(20px,env(safe-area-inset-top))}}
+.pwa-update-text{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500}
+.pwa-update-btn{background:white;color:var(--leaf);border:none;padding:6px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:transform .12s}
+.pwa-update-btn:hover{transform:scale(1.05)}
+
+/* Safe-area for standalone mode (iOS notch) */
+@supports(padding:max(0px)){
+  body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -856,6 +918,7 @@ nav{background:var(--soil);padding:0 16px;display:flex;align-items:center;positi
   </div>
   <div class="account-menu">
     <div class="account-item" onclick="closeAccount();showPage('subscription')">⭐ Mon abonnement</div>
+    <div class="account-item" id="ap-install" onclick="closeAccount();pwaInstall()" style="display:none">📱 Installer l'application</div>
     <div class="account-item danger" onclick="doLogout()">🚪 Déconnexion</div>
   </div>
 </div>
@@ -1135,7 +1198,7 @@ async function enterApp(){
 // Mappers: DB row → in-memory shape
 
 function zoneFromDb(r){
-  return {id:r.id,name:r.name,type:r.type,w:Number(r.width),h:Number(r.height),shade:r.shade,orient:r.orient,isFreeZone:UNLOCK_ALL?false:r.is_free_zone,createdAt:new Date(r.created_at).getTime()};
+  return {id:r.id,name:r.name,type:r.type,w:Number(r.width),h:Number(r.height),shade:r.shade,orient:r.orient,soilType:r.soil_type||'inconnu',notes:r.notes||'',isFreeZone:UNLOCK_ALL?false:r.is_free_zone,createdAt:new Date(r.created_at).getTime()};
 }
 function cultureFromDb(r){
   return {id:r.id,plantId:r.plant_id,zoneId:r.zone_id,qty:r.qty,placements:r.placements||[],forcedFlags:r.forced_flags||[],method:r.method,withAlerts:r.with_alerts,notes:r.notes||'',date:new Date(r.planted_at||r.created_at).getTime()};
@@ -1188,12 +1251,12 @@ async function seedWelcomeNotifs(){
 
 // Per-entity helpers — these REPLACE saveUserData() (whole-blob save)
 async function saveZoneInsert(z){
-  const {data,error}=await sb.from('zones').insert({user_id:currentUser.id,name:z.name,type:z.type,width:z.w,height:z.h,shade:z.shade,orient:z.orient||null,is_free_zone:!!z.isFreeZone}).select().single();
+  const {data,error}=await sb.from('zones').insert({user_id:currentUser.id,name:z.name,type:z.type,width:z.w,height:z.h,shade:z.shade,orient:z.orient||null,soil_type:z.soilType||'inconnu',notes:z.notes||null,is_free_zone:!!z.isFreeZone}).select().single();
   if(error){console.error(error);alert('Erreur sauvegarde zone : '+error.message);return null}
   return zoneFromDb(data);
 }
 async function saveZoneUpdate(z){
-  const {error}=await sb.from('zones').update({name:z.name,width:z.w,height:z.h,shade:z.shade,orient:z.orient||null}).eq('id',z.id);
+  const {error}=await sb.from('zones').update({name:z.name,width:z.w,height:z.h,shade:z.shade,orient:z.orient||null,soil_type:z.soilType||'inconnu',notes:z.notes||null}).eq('id',z.id);
   if(error)console.error(error);
 }
 async function saveZoneDelete(id){
@@ -1464,17 +1527,45 @@ const ZW_SHADES=[
 ];
 const ZW_ORIENT=['N','E','S','O'];
 
-let zwState={mode:'create',step:1,id:null,type:'jardin',name:'',w:null,h:null,shade:null,orient:null,notes:''};
+const ZW_SOILS=[
+  {key:'inconnu',emoji:'❓',name:'À déterminer',desc:'Je ne sais pas encore'},
+  {key:'limoneux',emoji:'🌾',name:'Limoneux',desc:'Idéal — souple, fertile, drainé'},
+  {key:'humifere',emoji:'🍂',name:'Humifère',desc:'Riche en humus, fertile'},
+  {key:'argileux',emoji:'🟫',name:'Argileux',desc:'Lourd, retient l\'eau, parfois compact'},
+  {key:'sableux',emoji:'⏳',name:'Sableux',desc:'Léger, drainant, peu fertile'},
+  {key:'calcaire',emoji:'⚪',name:'Calcaire',desc:'pH élevé, séchant, parfois caillouteux'},
+  {key:'tourbeux',emoji:'🟤',name:'Tourbeux',desc:'Acide, riche, retient beaucoup l\'eau'},
+  {key:'caillouteux',emoji:'🪨',name:'Caillouteux',desc:'Drainant à l\'extrême, à amender'}
+];
+// Plantes qui aiment / détestent chaque type de sol
+const SOIL_LIKES={
+  argileux:['chou','salade','blette','poireau','feve','pois','rhubarbe'],
+  sableux:['carotte','radis','panais','navet','oignon','ail','asperge','fraise'],
+  calcaire:['chou','asperge','epinard','feve','poireau','romarin','thym','sauge','lavande'],
+  limoneux:['tomate','aubergine','poivron','courgette','potiron','concombre','fraise','salade','haricot','mais'],
+  humifere:['tomate','courgette','potiron','concombre','aubergine','poivron','blette','fraise','rhubarbe'],
+  tourbeux:['myrtille','pdt','fraise'],
+  caillouteux:['thym','romarin','sauge','origan','lavande']
+};
+const SOIL_DISLIKES={
+  argileux:['carotte','panais','radis','tomate','courgette'],
+  sableux:['chou','salade','poireau','feve','pois','rhubarbe'],
+  calcaire:['myrtille','pdt','tomate','rhubarbe'],
+  tourbeux:['chou','romarin','thym','sauge','lavande'],
+  caillouteux:['carotte','panais','navet','radis','salade','blette']
+};
+
+let zwState={mode:'create',step:1,id:null,type:'jardin',name:'',w:null,h:null,shade:null,orient:null,soilType:'inconnu',notes:''};
 
 function openZoneWizard(){
   if(currentUser.tier==='free'&&zones.length>=1){showLock('zone');return}
-  zwState={mode:'create',step:1,id:null,type:'jardin',name:'',w:null,h:null,shade:'plein-soleil',orient:null,notes:''};
+  zwState={mode:'create',step:1,id:null,type:'jardin',name:'',w:null,h:null,shade:'plein-soleil',orient:null,soilType:'inconnu',notes:''};
   document.getElementById('zone-wizard-modal').classList.add('open');
   zwRender();
 }
 function openZoneWizardEdit(id){
   const z=zones.find(x=>x.id===id);if(!z)return;
-  zwState={mode:'edit',step:2,id:z.id,type:z.type==='balcon'?'balcon':'jardin',name:z.name,w:z.w,h:z.h,shade:z.shade,orient:z.orient||null,notes:z.notes||''};
+  zwState={mode:'edit',step:2,id:z.id,type:z.type==='balcon'?'balcon':'jardin',name:z.name,w:z.w,h:z.h,shade:z.shade,orient:z.orient||null,soilType:z.soilType||'inconnu',notes:z.notes||''};
   document.getElementById('zone-wizard-modal').classList.add('open');
   zwRender();
 }
@@ -1535,8 +1626,14 @@ function zwStep2(){
     html+='<div class="zw-orient-pill '+(zwState.orient===o?'selected':'')+'" onclick="zwSelectOrient(\''+o+'\')">'+o+'</div>';
   });
   html+='</div>';
+  html+='<div class="zw-section-label">Type de sol</div>';
+  html+='<div class="zw-soil-grid">';
+  ZW_SOILS.forEach(s=>{
+    html+='<div class="zw-soil-card '+(zwState.soilType===s.key?'selected':'')+'" onclick="zwSelectSoil(\''+s.key+'\')"><div class="zw-soil-emoji">'+s.emoji+'</div><div class="zw-soil-content"><div class="zw-soil-name">'+s.name+'</div><div class="zw-soil-desc">'+s.desc+'</div></div></div>';
+  });
+  html+='</div>';
   html+='<div class="zw-section-label">Notes (optionnel)</div>';
-  html+='<input type="text" class="zw-input" id="zw-notes" placeholder="Sol argileux, vent..." value="'+escapeHtml(zwState.notes||'')+'" maxlength="200">';
+  html+='<input type="text" class="zw-input" id="zw-notes" placeholder="Vent, accès difficile, observations..." value="'+escapeHtml(zwState.notes||'')+'" maxlength="200">';
   // Actions
   if(zwState.mode==='edit'){
     html+='<div class="zw-actions"><button class="btn btn-outline" onclick="closeZoneWizard()">Annuler</button><button class="btn btn-danger" onclick="zwDeleteFromWizard()">🗑 Supprimer</button><button class="btn btn-primary" onclick="zwSave()">Enregistrer</button></div>';
@@ -1565,6 +1662,7 @@ function zwSelectPreset(i){
 }
 function zwSelectShade(k){zwState.shade=k;zwRender()}
 function zwSelectOrient(o){zwState.orient=zwState.orient===o?null:o;zwRender()}
+function zwSelectSoil(s){zwState.soilType=s;zwRender()}
 
 async function zwSave(){
   // Read latest input values (in case user typed but didn't blur)
@@ -1581,10 +1679,10 @@ async function zwSave(){
   if(zwState.mode==='edit'){
     const z=zones.find(x=>x.id===zwState.id);
     if(!z){closeZoneWizard();return}
-    z.name=name;z.w=zwState.w;z.h=zwState.h;z.shade=zwState.shade;z.orient=zwState.orient;
+    z.name=name;z.w=zwState.w;z.h=zwState.h;z.shade=zwState.shade;z.orient=zwState.orient;z.soilType=zwState.soilType;z.notes=zwState.notes;
     await saveZoneUpdate(z);
   } else {
-    const tmp={name,type:zwState.type,w:zwState.w,h:zwState.h,shade:zwState.shade,orient:zwState.orient,isFreeZone:false};
+    const tmp={name,type:zwState.type,w:zwState.w,h:zwState.h,shade:zwState.shade,orient:zwState.orient,soilType:zwState.soilType,notes:zwState.notes,isFreeZone:false};
     const saved=await saveZoneInsert(tmp);
     if(!saved) return;
     zones.push(saved);
@@ -2179,20 +2277,160 @@ function pwPickZone(id){pwState.zoneId=id;pwState.placements=[];pwRender()}
 
 function pwStep6(){
   const p=plantById(pwState.plantId);
-  return '<div class="selected-plant-head"><div class="selected-plant-emoji">'+p.emoji+'</div><div><div class="selected-plant-info-name">Place tes '+pwState.qty+' '+p.name+'</div><div class="selected-plant-info-spacing">Clique sur les cellules libres pour les placer (cellule = 40×40 cm)</div></div></div>'+
+  return '<div class="selected-plant-head"><div class="selected-plant-emoji">'+p.emoji+'</div><div><div class="selected-plant-info-name">Place tes '+pwState.qty+' '+p.name+'</div><div class="selected-plant-info-spacing">Clique sur les cellules libres ou utilise le placement auto</div></div></div>'+
+    '<div class="auto-place-bar"><button class="btn btn-primary auto-place-btn" onclick="pwAutoPlace()">✨ Placer automatiquement</button><button class="btn btn-outline auto-clear-btn" onclick="pwClearPlacements()" '+(pwState.placements.length===0?'disabled':'')+'>↻ Effacer</button></div>'+
     '<div class="plan-wrap"><div class="plan-info"><span id="pw-plan-info"></span><span class="plan-counter" id="pw-plan-counter"></span></div><div class="plan-canvas" id="pw-plan-canvas"></div></div>'+
     '<div style="margin-top:14px"><label class="check-row" id="pw-alerts-row"><input type="checkbox" '+(pwState.withAlerts?'checked':'')+' onchange="pwToggleAlerts(this.checked)"><div class="check-text">Recevoir des conseils & alertes pour cette culture<small>Arrosage, soins selon la phase, récolte — basés sur la date du jour</small></div></label></div>'+
     '<div class="form-group" style="margin-top:12px"><label>Notes (optionnel)</label><textarea id="pw-notes" rows="2" placeholder="Variété spécifique, observations...">'+pwState.notes+'</textarea></div>'+
     '<div class="wizard-footer"><button class="btn btn-outline left" onclick="pwGoStep(5)">← Retour</button><button class="btn btn-outline" onclick="closePlantWizard()">Annuler</button><button class="btn btn-primary" id="pw-save" onclick="pwSave()" '+(pwState.placements.length===0?'disabled':'')+'>Enregistrer ('+pwState.placements.length+'/'+pwState.qty+')</button></div>';
 }
 function pwToggleAlerts(v){pwState.withAlerts=v;document.getElementById('pw-alerts-row').classList.toggle('checked',v)}
+function pwClearPlacements(){pwState.placements=[];pwRender()}
+
+// ============ INTELLIGENT AUTO-PLACEMENT ============
+function pwAutoPlace(){
+  const z=zones.find(x=>x.id===pwState.zoneId);
+  const p=plantById(pwState.plantId);
+  if(!z||!p) return;
+  const cols=Math.round(z.w/0.4),rows=Math.round(z.h/0.4);
+  const sp=p.species;
+  const minDistSelf=Math.max(1,Math.round(p.spacing/100/0.4));
+
+  // Build occupancy map of OTHER cultures in this zone (already saved)
+  const occupiedCells=new Set();
+  myPlants.filter(c=>c.zoneId===z.id).forEach(c=>{
+    (c.placements||[]).forEach(pl=>{occupiedCells.add(pl[0]+','+pl[1])});
+  });
+
+  // Build a list of "neighbor info" for each cell
+  // For incompatibility, we check distance to OTHER cultures (different species)
+  // For association, bonus if near a compatible species
+  const neighborhoodInfo=[];
+  myPlants.filter(c=>c.zoneId===z.id).forEach(c=>{
+    const ocSp=speciesOf(c.plantId);
+    if(ocSp===sp) return; // same species, only spacing rule applies (handled separately)
+    const incompat=getIncompatBetween(sp,ocSp);
+    const isGood=(ASSOC_GOOD[sp]||[]).includes(ocSp);
+    (c.placements||[]).forEach(pl=>{
+      neighborhoodInfo.push({r:pl[0],c:pl[1],incompat,isGood,otherSpecies:ocSp});
+    });
+  });
+
+  // Score function: higher = better placement
+  function scoreCell(r,c,placed){
+    if(occupiedCells.has(r+','+c)) return -Infinity;
+    if(placed.some(pl=>pl[0]===r&&pl[1]===c)) return -Infinity;
+    let score=100;
+    // Spacing with already-placed same species (current batch)
+    for(const pl of placed){
+      const cellDist=Math.max(Math.abs(pl[0]-r),Math.abs(pl[1]-c));
+      if(cellDist<minDistSelf) return -Infinity; // can't place
+      score+=cellDist*2; // bonus for being further than min
+    }
+    // Cross-species incompatibilities and associations
+    for(const n of neighborhoodInfo){
+      const dCells=Math.sqrt(Math.pow(n.r-r,2)+Math.pow(n.c-c,2));
+      const dM=dCells*0.4;
+      if(n.incompat){
+        const ratio=dM/n.incompat.dist;
+        if(ratio<0.5) return -Infinity;        // critical → forbidden
+        else if(ratio<0.85) score-=80;          // warning
+        else if(ratio<1) score-=20;             // info
+      }
+      if(n.isGood){
+        // Bonus for proximity to companion plants (within 1.5 m)
+        if(dM<=1.5) score+=30-(dM*10);
+      }
+    }
+    // Slight bonus to keep plants somewhat grouped (not too dispersed)
+    if(placed.length>0){
+      let avgDist=0;
+      placed.forEach(pl=>{avgDist+=Math.max(Math.abs(pl[0]-r),Math.abs(pl[1]-c))});
+      avgDist/=placed.length;
+      // Mild penalty if very far from centroid (>10 cells)
+      if(avgDist>10) score-=10;
+    }
+    // Slight bonus for cells closer to center (better microclimate, easier access)
+    const centerDist=Math.sqrt(Math.pow(r-rows/2,2)+Math.pow(c-cols/2,2));
+    score+=Math.max(0,5-centerDist);
+    return score;
+  }
+
+  // Greedy placement
+  const placed=[];
+  for(let i=0;i<pwState.qty;i++){
+    let best=null,bestScore=-Infinity;
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const s=scoreCell(r,c,placed);
+        if(s>bestScore){bestScore=s;best={r,c}}
+      }
+    }
+    if(!best||bestScore===-Infinity) break;
+    placed.push([best.r,best.c,false]);
+  }
+
+  if(placed.length===0){
+    alert("Aucun emplacement viable trouvé dans cette zone.\nVérifie l'espace libre et les incompatibilités avec les cultures déjà présentes.");
+    return;
+  }
+
+  if(placed.length<pwState.qty){
+    alert("Seulement "+placed.length+" plants sur "+pwState.qty+" ont pu être placés (espace insuffisant ou contraintes incompatibles).\nTu peux réduire la quantité, libérer de l'espace ou ajouter manuellement.");
+  }
+
+  pwState.placements=placed;
+  pwRender();
+}
 
 function pwRenderPlan(){
   const z=zones.find(x=>x.id===pwState.zoneId);
   const p=plantById(pwState.plantId);
   const cols=Math.round(z.w/0.4),rows=Math.round(z.h/0.4);
   const minDist=Math.max(1,Math.round(p.spacing/100/0.4));
-  const taken=[];myPlants.filter(c=>c.zoneId===z.id).forEach(c=>c.placements.forEach(([r,col])=>taken.push({r,c:col,emoji:plantById(c.plantId)?.emoji||'❓'})));
+  const sp=p.species;
+  // Build "taken" list with species & culture
+  const taken=[];
+  myPlants.filter(c=>c.zoneId===z.id).forEach(c=>{
+    const pl=plantById(c.plantId);
+    (c.placements||[]).forEach(([r,col])=>taken.push({r,c:col,emoji:pl?pl.emoji:'❓',species:speciesOf(c.plantId),plantName:pl?pl.name:'?'}));
+  });
+
+  // Compute alert per placed cell (current batch) — incompat with any taken cell of different species
+  function computeAlertForPlacement(r,c){
+    let worst=null;
+    for(const t of taken){
+      if(t.species===sp) continue;
+      const rule=getIncompatBetween(sp,t.species);
+      if(!rule) continue;
+      const dM=Math.sqrt(Math.pow(t.r-r,2)+Math.pow(t.c-c,2))*0.4;
+      const lvl=incompatLevel(dM,rule.dist);
+      if(!lvl) continue;
+      const order={critical:3,warning:2,info:1};
+      if(!worst||order[lvl]>order[worst.level]){
+        worst={level:lvl,otherName:t.plantName,reason:rule.reason,dist:dM,critDist:rule.dist};
+      }
+    }
+    return worst;
+  }
+  // Compute alert per taken cell (other cultures) — distance to any placed (current batch) of incompat species
+  function computeAlertForTaken(t){
+    if(t.species===sp) return null;
+    const rule=getIncompatBetween(sp,t.species);
+    if(!rule) return null;
+    let worst=null;
+    for(const pl of pwState.placements){
+      const dM=Math.sqrt(Math.pow(t.r-pl[0],2)+Math.pow(t.c-pl[1],2))*0.4;
+      const lvl=incompatLevel(dM,rule.dist);
+      if(!lvl) continue;
+      const order={critical:3,warning:2,info:1};
+      if(!worst||order[lvl]>order[worst.level]){
+        worst={level:lvl,otherName:p.name,reason:rule.reason,dist:dM,critDist:rule.dist};
+      }
+    }
+    return worst;
+  }
+
   let html='';
   for(let r=0;r<rows;r++){
     for(let c=0;c<cols;c++){
@@ -2207,10 +2445,27 @@ function pwRenderPlan(){
       }
       let cls='plan-cell';
       let content='';
-      if(isTaken){cls+=' taken';content='<span class="plan-cell-emoji">'+isTaken.emoji+'</span>'}
-      else if(has){cls+=' has';if(has[2]) cls+=' forced';content='<span class="plan-cell-emoji">'+p.emoji+'</span>'}
-      else if(tooClose) cls+=' too-close';
-      html+='<div class="'+cls+'" onclick="'+(isTaken?'':'pwToggleCell('+r+','+c+')')+'">'+content+'</div>';
+      let alertBadge='';
+      if(isTaken){
+        cls+=' taken';
+        content='<span class="plan-cell-emoji">'+isTaken.emoji+'</span>';
+        const al=computeAlertForTaken(isTaken);
+        if(al){
+          cls+=' alert-'+al.level;
+          const tip=al.level==='critical'?'🚨 ':al.level==='warning'?'⚠️ ':'ℹ️ ';
+          alertBadge='<span class="cell-alert" data-tip="'+escapeHtml(tip+isTaken.plantName+' × '+p.name+' : '+al.reason+' ('+al.dist.toFixed(1)+' m, idéal ≥'+al.critDist+' m)')+'" onclick="event.stopPropagation();showCellAlert(this)">'+(al.level==='critical'?'🚨':al.level==='warning'?'⚠️':'ℹ️')+'</span>';
+        }
+      } else if(has){
+        cls+=' has';if(has[2]) cls+=' forced';
+        content='<span class="plan-cell-emoji">'+p.emoji+'</span>';
+        const al=computeAlertForPlacement(r,c);
+        if(al){
+          cls+=' alert-'+al.level;
+          const tip=al.level==='critical'?'🚨 ':al.level==='warning'?'⚠️ ':'ℹ️ ';
+          alertBadge='<span class="cell-alert" data-tip="'+escapeHtml(tip+p.name+' × '+al.otherName+' : '+al.reason+' ('+al.dist.toFixed(1)+' m, idéal ≥'+al.critDist+' m)')+'" onclick="event.stopPropagation();showCellAlert(this)">'+(al.level==='critical'?'🚨':al.level==='warning'?'⚠️':'ℹ️')+'</span>';
+        }
+      } else if(tooClose) cls+=' too-close';
+      html+='<div class="'+cls+'" onclick="'+(isTaken?'':'pwToggleCell('+r+','+c+')')+'">'+content+alertBadge+'</div>';
     }
   }
   const canvas=document.getElementById('pw-plan-canvas');
@@ -2222,6 +2477,12 @@ function pwRenderPlan(){
   if(pwState.placements.length>=pwState.qty) counter.classList.add('done'); else counter.classList.remove('done');
   const btn=document.getElementById('pw-save');
   if(btn){btn.disabled=pwState.placements.length===0;btn.textContent='Enregistrer ('+pwState.placements.length+'/'+pwState.qty+')'}
+}
+
+// Show alert tip on click of badge
+function showCellAlert(el){
+  const tip=el.getAttribute('data-tip');
+  if(tip) alert(tip);
 }
 
 function pwToggleCell(r,c){
@@ -3474,6 +3735,108 @@ async function init(){
   }
   setTimeout(()=>{const e=document.getElementById('login-email');if(e)e.focus()},100);
 }
+// ============ PWA INSTALL & SERVICE WORKER ============
+let pwaDeferredPrompt=null;
+
+// Register the service worker
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      // Detect updates
+      reg.addEventListener('updatefound',()=>{
+        const nw=reg.installing;
+        if(!nw) return;
+        nw.addEventListener('statechange',()=>{
+          if(nw.state==='installed'&&navigator.serviceWorker.controller){
+            // New version available
+            showUpdateBanner();
+          }
+        });
+      });
+    }).catch(err=>console.warn('SW register failed',err));
+  });
+}
+
+// Capture install prompt for later
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  pwaDeferredPrompt=e;
+  const apItem=document.getElementById('ap-install');
+  if(apItem) apItem.style.display='block';
+  if(!localStorage.getItem('mp_install_dismissed')) showInstallBanner();
+});
+
+window.addEventListener('appinstalled',()=>{
+  pwaDeferredPrompt=null;
+  hideInstallBanner();
+  localStorage.setItem('mp_install_dismissed','1');
+  const apItem=document.getElementById('ap-install');
+  if(apItem) apItem.style.display='none';
+});
+
+function showInstallBanner(){
+  if(document.getElementById('pwa-install-banner')) return;
+  const banner=document.createElement('div');
+  banner.id='pwa-install-banner';
+  banner.innerHTML='<div class="pwa-install-icon">📱</div><div class="pwa-install-text"><div class="pwa-install-title">Installer MonPotager</div><div class="pwa-install-sub">Accès rapide depuis ton écran d\'accueil</div></div><button class="pwa-install-btn" onclick="pwaInstall()">Installer</button><button class="pwa-install-close" onclick="pwaDismissInstall()">✕</button>';
+  document.body.appendChild(banner);
+  setTimeout(()=>banner.classList.add('show'),100);
+}
+function hideInstallBanner(){
+  const b=document.getElementById('pwa-install-banner');
+  if(b){b.classList.remove('show');setTimeout(()=>b.remove(),300)}
+}
+async function pwaInstall(){
+  if(!pwaDeferredPrompt){
+    // iOS fallback (no beforeinstallprompt) — show instructions
+    showIosInstallInstructions();
+    return;
+  }
+  pwaDeferredPrompt.prompt();
+  const choice=await pwaDeferredPrompt.userChoice;
+  pwaDeferredPrompt=null;
+  if(choice&&choice.outcome==='accepted'){hideInstallBanner()}
+  else{pwaDismissInstall()}
+}
+function pwaDismissInstall(){
+  hideInstallBanner();
+  localStorage.setItem('mp_install_dismissed','1');
+}
+
+function showIosInstallInstructions(){
+  const overlay=document.getElementById('lock-overlay');
+  if(!overlay) return;
+  overlay.innerHTML='<div class="lock-card"><div class="lock-icon">📱</div><div class="lock-title">Installer sur iPhone</div><div class="lock-text">Pour installer MonPotager sur l\'écran d\'accueil :</div><ul class="lock-features"><li>1. Appuie sur le bouton <strong>Partager</strong> ⎋ en bas</li><li>2. Choisis <strong>"Sur l\'écran d\'accueil"</strong></li><li>3. Appuie sur <strong>Ajouter</strong></li></ul><div class="lock-buttons"><button class="btn btn-primary" onclick="closeLock()">Compris</button></div></div>';
+  overlay.classList.add('open');
+}
+
+// Banner pour les nouvelles versions
+function showUpdateBanner(){
+  if(document.getElementById('pwa-update-banner')) return;
+  const banner=document.createElement('div');
+  banner.id='pwa-update-banner';
+  banner.innerHTML='<div class="pwa-update-text">🔄 Nouvelle version disponible</div><button class="pwa-update-btn" onclick="pwaUpdate()">Recharger</button>';
+  document.body.appendChild(banner);
+  setTimeout(()=>banner.classList.add('show'),100);
+}
+function pwaUpdate(){
+  if(navigator.serviceWorker.controller){
+    navigator.serviceWorker.controller.postMessage({type:'SKIP_WAITING'});
+  }
+  window.location.reload();
+}
+
+// iOS detection — propose install banner manually after a delay
+function isIos(){return /iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream}
+function isStandalone(){return window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true}
+if(isIos()&&!isStandalone()&&!localStorage.getItem('mp_install_dismissed')){
+  setTimeout(()=>{
+    if(!document.getElementById('pwa-install-banner'))showInstallBanner();
+    const apItem=document.getElementById('ap-install');
+    if(apItem) apItem.style.display='block';
+  },5000);
+}
+
 init();
 </script>
 </body>
