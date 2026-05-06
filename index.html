@@ -428,10 +428,13 @@ nav{background:var(--soil);padding:0 16px;display:flex;align-items:center;positi
 .cell-alert{position:absolute;top:-2px;right:-2px;width:20px;height:20px;background:white;border-radius:50%;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.18);z-index:2;line-height:1}
 .cell-alert:hover{transform:scale(1.15)}
 .plan-cell{position:relative}
-.auto-place-bar{display:flex;gap:8px;margin-bottom:14px;padding:12px;background:linear-gradient(135deg,#f0e6f5,#fdf3e0);border-radius:14px;border:1.5px dashed #c9a4d6}
-.auto-place-btn{flex:1;justify-content:center;background:linear-gradient(135deg,#a460c2,#8e44ad);color:white;border:none;font-weight:600;box-shadow:0 4px 14px rgba(142,68,173,.3)}
+.auto-place-bar{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;padding:12px;background:linear-gradient(135deg,#f0e6f5,#fdf3e0);border-radius:14px;border:1.5px dashed #c9a4d6}
+.auto-place-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.auto-place-btn{flex:1;min-width:160px;justify-content:center;background:linear-gradient(135deg,#a460c2,#8e44ad);color:white;border:none;font-weight:600;box-shadow:0 4px 14px rgba(142,68,173,.3)}
 .auto-place-btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(142,68,173,.4)}
-.auto-clear-btn{flex:0 0 auto;min-width:120px;justify-content:center}
+.auto-place-btn.alt{background:linear-gradient(135deg,#e8a020,#d4801a);box-shadow:0 4px 14px rgba(212,128,26,.3)}
+.auto-place-btn.alt:hover{box-shadow:0 6px 18px rgba(212,128,26,.4)}
+.auto-clear-btn{justify-content:center}
 .plan-cell-emoji{font-size:18px;line-height:1}
 
 /* Footer buttons in modal */
@@ -2278,7 +2281,7 @@ function pwPickZone(id){pwState.zoneId=id;pwState.placements=[];pwRender()}
 function pwStep6(){
   const p=plantById(pwState.plantId);
   return '<div class="selected-plant-head"><div class="selected-plant-emoji">'+p.emoji+'</div><div><div class="selected-plant-info-name">Place tes '+pwState.qty+' '+p.name+'</div><div class="selected-plant-info-spacing">Clique sur les cellules libres ou utilise le placement auto</div></div></div>'+
-    '<div class="auto-place-bar"><button class="btn btn-primary auto-place-btn" onclick="pwAutoPlace()">✨ Placer automatiquement</button><button class="btn btn-outline auto-clear-btn" onclick="pwClearPlacements()" '+(pwState.placements.length===0?'disabled':'')+'>↻ Effacer</button></div>'+
+    '<div class="auto-place-bar"><div class="auto-place-buttons"><button class="btn btn-primary auto-place-btn" onclick="pwAutoPlace(false)">✨ Placer cette culture</button><button class="btn btn-primary auto-place-btn alt" onclick="pwAutoPlace(true)">🌟 Réoptimiser toute la zone</button></div><button class="btn btn-outline auto-clear-btn" onclick="pwClearPlacements()" '+(pwState.placements.length===0?'disabled':'')+'>↻ Effacer</button></div>'+
     '<div class="plan-wrap"><div class="plan-info"><span id="pw-plan-info"></span><span class="plan-counter" id="pw-plan-counter"></span></div><div class="plan-canvas" id="pw-plan-canvas"></div></div>'+
     '<div style="margin-top:14px"><label class="check-row" id="pw-alerts-row"><input type="checkbox" '+(pwState.withAlerts?'checked':'')+' onchange="pwToggleAlerts(this.checked)"><div class="check-text">Recevoir des conseils & alertes pour cette culture<small>Arrosage, soins selon la phase, récolte — basés sur la date du jour</small></div></label></div>'+
     '<div class="form-group" style="margin-top:12px"><label>Notes (optionnel)</label><textarea id="pw-notes" rows="2" placeholder="Variété spécifique, observations...">'+pwState.notes+'</textarea></div>'+
@@ -2288,27 +2291,32 @@ function pwToggleAlerts(v){pwState.withAlerts=v;document.getElementById('pw-aler
 function pwClearPlacements(){pwState.placements=[];pwRender()}
 
 // ============ INTELLIGENT AUTO-PLACEMENT ============
-function pwAutoPlace(){
+// Mode false = place uniquement les plants de la culture en cours (sans déplacer les existants).
+// Mode true  = réorganise TOUTES les cultures de la zone pour minimiser les conflits.
+async function pwAutoPlace(replanAll){
   const z=zones.find(x=>x.id===pwState.zoneId);
   const p=plantById(pwState.plantId);
   if(!z||!p) return;
   const cols=Math.round(z.w/0.4),rows=Math.round(z.h/0.4);
+
+  if(replanAll){
+    return pwAutoPlaceFull(z,p,rows,cols);
+  } else {
+    return pwAutoPlaceCurrent(z,p,rows,cols);
+  }
+}
+
+function pwAutoPlaceCurrent(z,p,rows,cols){
   const sp=p.species;
   const minDistSelf=Math.max(1,Math.round(p.spacing/100/0.4));
-
-  // Build occupancy map of OTHER cultures in this zone (already saved)
   const occupiedCells=new Set();
   myPlants.filter(c=>c.zoneId===z.id).forEach(c=>{
     (c.placements||[]).forEach(pl=>{occupiedCells.add(pl[0]+','+pl[1])});
   });
-
-  // Build a list of "neighbor info" for each cell
-  // For incompatibility, we check distance to OTHER cultures (different species)
-  // For association, bonus if near a compatible species
   const neighborhoodInfo=[];
   myPlants.filter(c=>c.zoneId===z.id).forEach(c=>{
     const ocSp=speciesOf(c.plantId);
-    if(ocSp===sp) return; // same species, only spacing rule applies (handled separately)
+    if(ocSp===sp) return;
     const incompat=getIncompatBetween(sp,ocSp);
     const isGood=(ASSOC_GOOD[sp]||[]).includes(ocSp);
     (c.placements||[]).forEach(pl=>{
@@ -2316,47 +2324,39 @@ function pwAutoPlace(){
     });
   });
 
-  // Score function: higher = better placement
   function scoreCell(r,c,placed){
     if(occupiedCells.has(r+','+c)) return -Infinity;
     if(placed.some(pl=>pl[0]===r&&pl[1]===c)) return -Infinity;
     let score=100;
-    // Spacing with already-placed same species (current batch)
     for(const pl of placed){
       const cellDist=Math.max(Math.abs(pl[0]-r),Math.abs(pl[1]-c));
-      if(cellDist<minDistSelf) return -Infinity; // can't place
-      score+=cellDist*2; // bonus for being further than min
+      if(cellDist<minDistSelf) return -Infinity;
+      score+=cellDist*2;
     }
-    // Cross-species incompatibilities and associations
     for(const n of neighborhoodInfo){
       const dCells=Math.sqrt(Math.pow(n.r-r,2)+Math.pow(n.c-c,2));
       const dM=dCells*0.4;
       if(n.incompat){
         const ratio=dM/n.incompat.dist;
-        if(ratio<0.5) return -Infinity;        // critical → forbidden
-        else if(ratio<0.85) score-=80;          // warning
-        else if(ratio<1) score-=20;             // info
+        if(ratio<0.5) return -Infinity;
+        else if(ratio<0.85) score-=80;
+        else if(ratio<1) score-=20;
       }
       if(n.isGood){
-        // Bonus for proximity to companion plants (within 1.5 m)
         if(dM<=1.5) score+=30-(dM*10);
       }
     }
-    // Slight bonus to keep plants somewhat grouped (not too dispersed)
     if(placed.length>0){
       let avgDist=0;
       placed.forEach(pl=>{avgDist+=Math.max(Math.abs(pl[0]-r),Math.abs(pl[1]-c))});
       avgDist/=placed.length;
-      // Mild penalty if very far from centroid (>10 cells)
       if(avgDist>10) score-=10;
     }
-    // Slight bonus for cells closer to center (better microclimate, easier access)
     const centerDist=Math.sqrt(Math.pow(r-rows/2,2)+Math.pow(c-cols/2,2));
     score+=Math.max(0,5-centerDist);
     return score;
   }
 
-  // Greedy placement
   const placed=[];
   for(let i=0;i<pwState.qty;i++){
     let best=null,bestScore=-Infinity;
@@ -2371,16 +2371,129 @@ function pwAutoPlace(){
   }
 
   if(placed.length===0){
-    alert("Aucun emplacement viable trouvé dans cette zone.\nVérifie l'espace libre et les incompatibilités avec les cultures déjà présentes.");
+    alert("Aucun emplacement viable trouvé dans cette zone.\nVérifie l'espace libre et les incompatibilités avec les cultures déjà présentes.\n\nAstuce : essaie « Réoptimiser toute la zone » pour réorganiser également les cultures existantes.");
+    return;
+  }
+  if(placed.length<pwState.qty){
+    alert("Seulement "+placed.length+" plants sur "+pwState.qty+" ont pu être placés (espace insuffisant ou contraintes incompatibles).\n\nAstuce : essaie « Réoptimiser toute la zone » pour libérer de la place.");
+  }
+  pwState.placements=placed;
+  pwRender();
+}
+
+// Mode "réoptimiser toute la zone" : repositionne toutes les cultures de la zone
+async function pwAutoPlaceFull(z,p,rows,cols){
+  // Build the list of all "groups" to place: existing cultures + the new one being planted
+  const existing=myPlants.filter(c=>c.zoneId===z.id);
+  if(existing.length===0){
+    // Aucun existant → équivalent au mode simple
+    return pwAutoPlaceCurrent(z,p,rows,cols);
+  }
+  const totalCells=rows*cols;
+  const newQty=pwState.qty;
+  const usedCells=existing.reduce((s,c)=>s+(c.placements||[]).length,0)+newQty;
+  if(usedCells>totalCells){
+    alert("Pas assez d'espace dans la zone pour replacer toutes les cultures ("+usedCells+" plants demandés pour "+totalCells+" cellules).\nRéduis la quantité ou supprime des cultures.");
     return;
   }
 
-  if(placed.length<pwState.qty){
-    alert("Seulement "+placed.length+" plants sur "+pwState.qty+" ont pu être placés (espace insuffisant ou contraintes incompatibles).\nTu peux réduire la quantité, libérer de l'espace ou ajouter manuellement.");
+  // Confirmation pour bien expliquer ce qui va se passer
+  const ok=confirm("« Réoptimiser toute la zone » va déplacer "+existing.length+" culture"+(existing.length>1?'s':'')+" déjà plantée"+(existing.length>1?'s':'')+" + ajouter tes "+newQty+" "+p.name+" pour minimiser les conflits.\n\nLes positions actuelles seront perdues (les plantes ne sont PAS détruites, juste leurs coordonnées dans la zone).\n\nContinuer ?");
+  if(!ok) return;
+
+  // Compose all groups: each group has {key, species, qty, plant, isNew, cultureId?}
+  const groups=existing.map(c=>{
+    const pl=plantById(c.plantId);
+    return {key:'cul-'+c.id,species:speciesOf(c.plantId),qty:(c.placements||[]).length,plant:pl,isNew:false,cultureId:c.id};
+  });
+  groups.push({key:'new',species:speciesOf(p.id),qty:newQty,plant:p,isNew:true});
+
+  // Sort: most constrained first (large spacing, more plants, has incompatibilities)
+  function constraintScore(g){
+    let s=g.plant.spacing*g.qty;
+    // Boost if species has incompatibilities with others present
+    const otherSpecies=groups.filter(g2=>g2!==g).map(g2=>g2.species);
+    for(const os of otherSpecies){
+      if(getIncompatBetween(g.species,os)) s+=300;
+    }
+    return s;
+  }
+  groups.sort((a,b)=>constraintScore(b)-constraintScore(a));
+
+  // Greedy placement of every plant from every group
+  // placedAll stores: array of {r,c,species,plant,groupKey,cultureId}
+  const placedAll=[];
+  const minDistFor={};
+  groups.forEach(g=>{minDistFor[g.key]=Math.max(1,Math.round(g.plant.spacing/100/0.4))});
+
+  function scoreCellGlobal(r,c,group){
+    if(placedAll.some(pl=>pl.r===r&&pl.c===c)) return -Infinity;
+    let score=100;
+    const minDistSelf=minDistFor[group.key];
+    for(const pl of placedAll){
+      const cellDist=Math.max(Math.abs(pl.r-r),Math.abs(pl.c-c));
+      if(pl.species===group.species){
+        if(cellDist<minDistSelf) return -Infinity;
+        score+=cellDist; // small bonus for spacing
+      } else {
+        const rule=getIncompatBetween(group.species,pl.species);
+        if(rule){
+          const dCells=Math.sqrt(Math.pow(pl.r-r,2)+Math.pow(pl.c-c,2));
+          const dM=dCells*0.4;
+          const ratio=dM/rule.dist;
+          if(ratio<0.5) return -Infinity;
+          else if(ratio<0.85) score-=80;
+          else if(ratio<1) score-=20;
+        }
+        if((ASSOC_GOOD[group.species]||[]).includes(pl.species)){
+          const dCells=Math.sqrt(Math.pow(pl.r-r,2)+Math.pow(pl.c-c,2));
+          const dM=dCells*0.4;
+          if(dM<=1.5) score+=30-(dM*10);
+        }
+      }
+    }
+    return score;
   }
 
-  pwState.placements=placed;
+  for(const g of groups){
+    let placedForGroup=0;
+    for(let i=0;i<g.qty;i++){
+      let best=null,bestScore=-Infinity;
+      for(let r=0;r<rows;r++){
+        for(let c=0;c<cols;c++){
+          const s=scoreCellGlobal(r,c,g);
+          if(s>bestScore){bestScore=s;best={r,c}}
+        }
+      }
+      if(!best||bestScore===-Infinity) break;
+      placedAll.push({r:best.r,c:best.c,species:g.species,groupKey:g.key,cultureId:g.cultureId,isNew:g.isNew});
+      placedForGroup++;
+    }
+    if(placedForGroup<g.qty){
+      alert("Impossible de placer toutes les "+g.plant.name+" ("+placedForGroup+"/"+g.qty+" placées). Annulation de l'optimisation.");
+      return;
+    }
+  }
+
+  // Apply placements:
+  // 1) Update existing cultures in DB and in memory
+  // 2) Set pwState.placements for the new culture
+  for(const exC of existing){
+    const newPositions=placedAll.filter(p=>p.cultureId===exC.id).map(p=>[p.r,p.c]);
+    exC.placements=newPositions;
+    exC.forcedFlags=newPositions.map(()=>false);
+    // Save to DB
+    try{
+      await sb.from('cultures').update({placements:newPositions,forced_flags:exC.forcedFlags}).eq('id',exC.id);
+    }catch(e){console.error('Update culture failed',e)}
+  }
+  const newPlacements=placedAll.filter(p=>p.isNew).map(p=>[p.r,p.c,false]);
+  pwState.placements=newPlacements;
+
   pwRender();
+
+  // Notif info
+  alert("✨ Zone réoptimisée !\n\n"+existing.length+" culture"+(existing.length>1?'s':'')+" déplacée"+(existing.length>1?'s':'')+" + "+newQty+" "+p.name+" placée"+(newQty>1?'s':'')+".");
 }
 
 function pwRenderPlan(){
