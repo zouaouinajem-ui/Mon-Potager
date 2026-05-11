@@ -1071,6 +1071,37 @@ nav{background:var(--soil);padding:0 16px;display:flex;align-items:center;positi
   </div>
 </div>
 
+<div class="modal-overlay" id="tuya-modal" onclick="if(event.target===this)closeTuyaModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-emoji">🔌</div>
+      <div class="modal-title-wrap"><div class="modal-title">Connecter Tuya</div><div class="modal-sub">Tes clés depuis iot.tuya.com</div></div>
+      <button class="modal-close" onclick="closeTuyaModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--leaf-pale);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--leaf);line-height:1.5">🔒 Tes clés sont stockées chiffrées dans Supabase et ne sont JAMAIS visibles dans le navigateur. Toutes les requêtes Tuya passent par notre serveur sécurisé.</div>
+      <div class="zw-section-label">Access ID / Client ID</div>
+      <input type="text" class="zw-input" id="tuya-access-id" placeholder="Colle ton Access ID ici" autocomplete="off">
+      <div class="zw-section-label" style="margin-top:14px">Access Secret / Client Secret</div>
+      <input type="password" class="zw-input" id="tuya-access-secret" placeholder="Ton Access Secret (caché)" autocomplete="off">
+      <div class="zw-section-label" style="margin-top:14px">UID (compte Tuya / SmartLife)</div>
+      <input type="text" class="zw-input" id="tuya-uid" placeholder="L'UID que tu as copié (eu1234...)" autocomplete="off">
+      <div class="zw-section-label" style="margin-top:14px">Région du serveur</div>
+      <div class="zw-orient-row" id="tuya-region-row">
+        <div class="zw-orient-pill selected" data-region="eu" onclick="tuyaSelectRegion('eu')">EU</div>
+        <div class="zw-orient-pill" data-region="us" onclick="tuyaSelectRegion('us')">US</div>
+        <div class="zw-orient-pill" data-region="cn" onclick="tuyaSelectRegion('cn')">CN</div>
+        <div class="zw-orient-pill" data-region="in" onclick="tuyaSelectRegion('in')">IN</div>
+      </div>
+      <div id="tuya-modal-error" style="display:none;background:var(--danger-light);color:var(--danger);border-radius:10px;padding:10px 12px;margin-top:14px;font-size:12px;line-height:1.5"></div>
+      <div class="zw-actions">
+        <button class="btn btn-outline" onclick="closeTuyaModal()">Annuler</button>
+        <button class="btn btn-primary" id="tuya-save-btn" onclick="saveTuyaCredentials()">🔌 Connecter et tester</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="lightbox" id="lightbox" onclick="if(event.target===this)closeLightbox()">
   <button class="lightbox-close" onclick="closeLightbox()">✕</button>
   <button class="lightbox-nav prev" onclick="lightboxNav(-1)">‹</button>
@@ -3772,43 +3803,386 @@ function generateDemoReadings(types){
   return out;
 }
 
-const READING_LABELS={humidity:{icon:'💧',lbl:'Humidité sol'},ph:{icon:'⚗️',lbl:'pH'},temperature:{icon:'🌡️',lbl:'Température'},light:{icon:'☀️',lbl:'Luminosité'}};
+const READING_LABELS={humidity:{icon:'💧',lbl:'Humidité sol'},ph:{icon:'⚗️',lbl:'pH'},temperature:{icon:'🌡️',lbl:'Température'},light:{icon:'☀️',lbl:'Luminosité'},battery:{icon:'🔋',lbl:'Batterie'}};
 
 let demoDevices=[];
+let realDevices=[];
+let tuyaConnected=false;
+let tuyaSelectedRegion='eu';
+let lastTuyaSync=null;
 
-function renderDevices(){
+// Status thresholds for real readings
+function statusFor(reading,value){
+  if(value==null||isNaN(value)) return '';
+  const v=Number(value);
+  if(reading==='humidity') return v<25?'bad':v<35?'warn':v>80?'warn':'ok';
+  if(reading==='ph') return v<5.5||v>7.8?'bad':v<6||v>7.5?'warn':'ok';
+  if(reading==='temperature') return v<5||v>35?'bad':v<10||v>30?'warn':'ok';
+  if(reading==='light') return v<1000?'warn':'ok';
+  if(reading==='battery') return v<15?'bad':v<30?'warn':'ok';
+  return '';
+}
+
+// Tuya raw status codes → normalized readings
+// Tuya returns array like [{code:'humidity', value:42}, {code:'temp_current', value:18}, ...]
+function normalizeTuyaStatus(rawStatus){
+  if(!Array.isArray(rawStatus)) return {};
+  const out={};
+  for(const item of rawStatus){
+    const code=(item.code||'').toLowerCase();
+    let val=item.value;
+    // Humidity codes
+    if(code==='humidity'||code==='humidity_value'||code==='soil_humidity'||code==='humidity_outdoor'){
+      out.humidity={val:typeof val==='number'?val:Number(val),unit:'%'};
+    }
+    // Temperature codes — Tuya often returns temp×10 (so 235 = 23.5°C)
+    else if(code==='temp_current'||code==='temperature'||code==='temp_value'||code==='va_temperature'){
+      let v=Number(val);
+      if(v>80||v<-30) v=v/10;
+      out.temperature={val:Math.round(v*10)/10,unit:'°C'};
+    }
+    // pH
+    else if(code==='ph'||code==='ph_value'||code==='soil_ph'){
+      let v=Number(val);
+      if(v>14) v=v/100; // some sensors send ph×100
+      out.ph={val:Math.round(v*10)/10,unit:'pH'};
+    }
+    // Light
+    else if(code==='bright_value'||code==='illuminance_value'||code==='light_intensity'){
+      out.light={val:Number(val),unit:'lux'};
+    }
+    // Battery
+    else if(code==='battery_percentage'||code==='battery_state'||code==='battery'){
+      let v=Number(val);
+      if(typeof v==='number') out.battery={val:v,unit:'%'};
+    }
+  }
+  // Apply status
+  Object.keys(out).forEach(k=>{out[k].status=statusFor(k,out[k].val)});
+  return out;
+}
+
+// ============ TUYA CREDENTIALS MGMT ============
+async function loadTuyaStatus(){
+  try{
+    const {data,error}=await sb.from('tuya_credentials').select('region,connected_at,last_used_at').eq('user_id',currentUser.id).maybeSingle();
+    if(error){console.error(error);return}
+    if(data){
+      tuyaConnected=true;
+      tuyaSelectedRegion=data.region||'eu';
+      lastTuyaSync=data.last_used_at?new Date(data.last_used_at):null;
+    } else {
+      tuyaConnected=false;
+    }
+  }catch(e){console.error(e)}
+}
+
+async function loadRealDevices(){
+  try{
+    const {data,error}=await sb.from('devices').select('*').eq('user_id',currentUser.id);
+    if(error){console.error(error);return}
+    realDevices=(data||[]).map(d=>({
+      id:d.id,
+      tuyaId:d.tuya_device_id,
+      name:d.name,
+      productName:d.product_name,
+      category:d.category,
+      online:d.online,
+      readings:d.supported_readings||[],
+      lastReadings:null,
+      zoneId:d.zone_id,
+      lastSeen:d.last_seen_at
+    }));
+  }catch(e){console.error(e)}
+}
+
+function openTuyaModal(){
+  document.getElementById('tuya-modal-error').style.display='none';
+  document.getElementById('tuya-access-id').value='';
+  document.getElementById('tuya-access-secret').value='';
+  document.getElementById('tuya-uid').value='';
+  tuyaSelectRegion(tuyaSelectedRegion||'eu');
+  document.getElementById('tuya-modal').classList.add('open');
+}
+function closeTuyaModal(){document.getElementById('tuya-modal').classList.remove('open')}
+
+function tuyaSelectRegion(r){
+  tuyaSelectedRegion=r;
+  document.querySelectorAll('#tuya-region-row .zw-orient-pill').forEach(el=>{
+    el.classList.toggle('selected',el.dataset.region===r);
+  });
+}
+
+function tuyaShowError(msg){
+  const e=document.getElementById('tuya-modal-error');
+  e.textContent=msg;
+  e.style.display='block';
+}
+
+async function saveTuyaCredentials(){
+  const accessId=document.getElementById('tuya-access-id').value.trim();
+  const accessSecret=document.getElementById('tuya-access-secret').value.trim();
+  const uid=document.getElementById('tuya-uid').value.trim();
+  const region=tuyaSelectedRegion;
+  if(!accessId||!accessSecret||!uid){tuyaShowError('Tous les champs sont obligatoires');return}
+  if(accessId.length<10){tuyaShowError('Access ID trop court — vérifie ta saisie');return}
+  if(accessSecret.length<10){tuyaShowError('Access Secret trop court — vérifie ta saisie');return}
+
+  const btn=document.getElementById('tuya-save-btn');
+  btn.disabled=true;btn.textContent='Connexion en cours...';
+
+  try{
+    // Save credentials (upsert: insert or update)
+    const {error}=await sb.from('tuya_credentials').upsert({
+      user_id:currentUser.id,
+      access_id:accessId,
+      access_secret:accessSecret,
+      uid,
+      region,
+      connected_at:new Date().toISOString()
+    });
+    if(error){tuyaShowError('Erreur de sauvegarde : '+error.message);btn.disabled=false;btn.textContent='🔌 Connecter et tester';return}
+
+    // Test the connection by calling Edge Function
+    const testResult=await callTuyaSync('test');
+    if(testResult.error){
+      tuyaShowError("Connexion Tuya échouée : "+(testResult.error||'inconnu')+"\nVérifie tes clés.");
+      btn.disabled=false;btn.textContent='🔌 Connecter et tester';
+      return;
+    }
+
+    tuyaConnected=true;
+    closeTuyaModal();
+    // Now sync devices
+    await syncTuyaDevices();
+  }catch(e){
+    tuyaShowError('Erreur réseau : '+e.message);
+    btn.disabled=false;btn.textContent='🔌 Connecter et tester';
+  }
+}
+
+async function disconnectTuya(){
+  if(!confirm("Déconnecter ton compte Tuya ?\n\nTes capteurs resteront associés à tes zones mais ne se mettront plus à jour automatiquement."))return;
+  try{
+    await sb.from('tuya_credentials').delete().eq('user_id',currentUser.id);
+    tuyaConnected=false;
+    renderDevices();
+  }catch(e){alert('Erreur : '+e.message)}
+}
+
+// Call Edge Function
+async function callTuyaSync(action,extra={}){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session)return {error:'not_logged_in'};
+  try{
+    const res=await fetch(SUPABASE_URL+'/functions/v1/tuya-sync',{
+      method:'POST',
+      headers:{
+        'Authorization':'Bearer '+session.access_token,
+        'Content-Type':'application/json',
+        'apikey':SUPABASE_ANON_KEY
+      },
+      body:JSON.stringify({action,...extra})
+    });
+    return await res.json();
+  }catch(e){
+    return {error:String(e)};
+  }
+}
+
+// Sync devices from Tuya
+async function syncTuyaDevices(){
+  if(!tuyaConnected){openTuyaModal();return}
+  // Show loading state
+  const c=document.getElementById('devices-content');
+  c.innerHTML='<div style="text-align:center;padding:60px 20px;color:var(--text-soft)">🔄 Synchronisation avec Tuya...</div>';
+
+  const result=await callTuyaSync('list_devices');
+  if(result.error||!result.success){
+    const errMsg=result.error||(result.msg)||'Erreur inconnue';
+    alert("Synchronisation échouée : "+errMsg+"\n\nVérifie que ton compte SmartLife est bien lié à ton projet Tuya.");
+    renderDevices();
+    return;
+  }
+  const tuyaDevices=result.result||[];
+  if(tuyaDevices.length===0){
+    alert("Aucun appareil trouvé dans ton compte Tuya.\n\nAssure-toi que :\n• Ton capteur est appairé dans SmartLife\n• Ton compte SmartLife est lié à ton projet Tuya IoT");
+    renderDevices();
+    return;
+  }
+  // Upsert each device into 'devices' table
+  for(const td of tuyaDevices){
+    const supportedReadings=['humidity','temperature','ph','light','battery'];
+    try{
+      const {error}=await sb.from('devices').upsert({
+        user_id:currentUser.id,
+        tuya_device_id:td.id,
+        name:td.name||'Capteur Tuya',
+        product_name:td.product_name||td.category||'',
+        category:td.category||'',
+        online:td.online!==false,
+        supported_readings:supportedReadings,
+        last_seen_at:new Date().toISOString()
+      },{onConflict:'user_id,tuya_device_id'});
+      if(error) console.error('upsert device error',error);
+    }catch(e){console.error(e)}
+  }
+  await sb.from('tuya_credentials').update({last_used_at:new Date().toISOString()}).eq('user_id',currentUser.id);
+  await loadRealDevices();
+  // Auto-fetch first reading for each device
+  for(const d of realDevices){
+    await refreshRealDevice(d.id,true);
+  }
+  renderDevices();
+}
+
+// Fetch current readings for a real device
+async function refreshRealDevice(deviceId,silent=false){
+  const d=realDevices.find(x=>x.id===deviceId);
+  if(!d)return;
+  if(!silent) d.refreshing=true;
+  if(!silent) renderDevices();
+  const result=await callTuyaSync('get_status',{device_id:d.tuyaId});
+  d.refreshing=false;
+  if(result.error||!result.success){
+    if(!silent) alert('Erreur lecture capteur : '+(result.error||'inconnue'));
+    d.online=false;
+    if(!silent) renderDevices();
+    return;
+  }
+  d.lastReadings=normalizeTuyaStatus(result.result||[]);
+  d.lastSeen=new Date();
+  d.online=true;
+  // Save reading to history
+  try{
+    const r=d.lastReadings;
+    await sb.from('device_readings').insert({
+      device_id:d.id,
+      user_id:currentUser.id,
+      humidity:r.humidity?.val??null,
+      temperature:r.temperature?.val??null,
+      ph:r.ph?.val??null,
+      light:r.light?.val??null,
+      battery:r.battery?.val??null,
+      raw_data:result.result
+    });
+  }catch(e){console.error(e)}
+  if(!silent) renderDevices();
+}
+
+async function assignRealDeviceZone(deviceId){
+  const d=realDevices.find(x=>x.id===deviceId);if(!d)return;
+  if(!zones.length){alert('Crée d\'abord une zone');return}
+  const choices=zones.map((z,i)=>(i+1)+'. '+z.name);
+  choices.unshift('0. Aucune zone');
+  const choice=prompt('Associer le capteur à :\n'+choices.join('\n'),'1');
+  const idx=parseInt(choice)-1;
+  if(isNaN(idx))return;
+  const zoneId=idx===-1?null:(zones[idx]?zones[idx].id:null);
+  try{
+    await sb.from('devices').update({zone_id:zoneId}).eq('id',d.id);
+    d.zoneId=zoneId;
+    renderDevices();
+  }catch(e){alert('Erreur : '+e.message)}
+}
+
+async function removeRealDevice(deviceId){
+  if(!confirm("Retirer ce capteur de l'app ?\n\nIl restera dans ton compte Tuya/SmartLife mais ne sera plus suivi ici."))return;
+  try{
+    await sb.from('devices').delete().eq('id',deviceId);
+    realDevices=realDevices.filter(d=>d.id!==deviceId);
+    renderDevices();
+  }catch(e){alert('Erreur : '+e.message)}
+}
+
+function fmtRelative(date){
+  if(!date) return 'jamais';
+  const d=typeof date==='string'?new Date(date):date;
+  const diff=(Date.now()-d.getTime())/1000;
+  if(diff<60) return "à l'instant";
+  if(diff<3600) return Math.floor(diff/60)+' min';
+  if(diff<86400) return Math.floor(diff/3600)+' h';
+  return Math.floor(diff/86400)+' j';
+}
+
+async function renderDevices(){
+  // Ensure data is loaded
+  if(!tuyaConnected && realDevices.length===0){
+    await loadTuyaStatus();
+    await loadRealDevices();
+  }
   const c=document.getElementById('devices-content');
   let html='';
-  html+='<div class="devices-banner"><div class="devices-banner-icon">📡</div><div class="devices-banner-content"><div class="devices-banner-title">Intégration Tuya — En attente du premier capteur</div><div class="devices-banner-text">Une fois ta sonde reçue, on connectera ton compte Tuya pour récupérer les vraies mesures. En attendant, voici une démo de ce que verra l\'app.</div></div></div>';
-  html+='<div class="tuya-pairing"><h3>🔌 Connecter une sonde Tuya</h3><p>Nécessite un compte développeur Tuya IoT (gratuit) ou la connexion via l\'app SmartLife/Tuya. Cette intégration sera activée quand ton capteur sera entre tes mains.</p><div class="tuya-pairing-buttons"><button class="btn btn-outline" onclick="explainTuyaSetup()">📖 Comment connecter ?</button><button class="btn btn-primary" onclick="addDemoDevice()">+ Ajouter sonde démo</button></div></div>';
 
-  if(!demoDevices.length){
-    html+='<div class="dev-empty"><div class="dev-empty-icon">📡</div><div class="dev-empty-title">Aucune sonde connectée</div><div class="dev-empty-text">Ajoute une sonde de démonstration pour voir comment l\'app affichera les données de tes vraies sondes Tuya une fois branchées.</div><button class="btn btn-primary" onclick="addDemoDevice()">+ Ajouter sonde démo</button></div>';
-  } else {
-    html+='<div class="devices-grid">';
-    demoDevices.forEach(d=>{
-      const z=zones.find(x=>x.id===d.zoneId);
-      const readings=generateDemoReadings(d.readings);
-      html+='<div class="device-card demo">';
-      html+='<div class="device-card-head"><span class="device-emoji">'+d.emoji+'</span><span class="device-name">'+d.name+'</span><span class="device-status-dot online" title="En ligne"></span></div>';
-      html+='<div class="device-zone">📍 Zone : '+(z?z.name:'Aucune')+'</div>';
-      html+='<div class="device-readings">';
-      d.readings.forEach(r=>{
-        const data=readings[r];const meta=READING_LABELS[r];
-        html+='<div class="device-reading '+(data.status==='ok'?'':data.status)+'"><div class="device-reading-icon">'+meta.icon+'</div><div class="device-reading-val">'+data.val+' <span class="device-reading-unit">'+data.unit+'</span></div><div class="device-reading-lbl">'+meta.lbl+'</div></div>';
+  if(tuyaConnected){
+    // Connected banner
+    html+='<div class="devices-banner" style="background:linear-gradient(135deg,#e3f6e0,#d0e9c8);border-color:#7ab265"><div class="devices-banner-icon">✅</div><div class="devices-banner-content"><div class="devices-banner-title" style="color:#2d5a27">Tuya connecté</div><div class="devices-banner-text" style="color:#3d6e2f">Région : '+tuyaSelectedRegion.toUpperCase()+'. Dernière synchro : '+fmtRelative(lastTuyaSync)+'</div></div><button class="btn btn-outline" style="flex-shrink:0;padding:8px 14px;font-size:12px" onclick="syncTuyaDevices()">🔄 Synchroniser</button></div>';
+
+    if(realDevices.length===0){
+      html+='<div class="dev-empty"><div class="dev-empty-icon">📡</div><div class="dev-empty-title">Aucun capteur synchronisé</div><div class="dev-empty-text">Clique "Synchroniser" pour récupérer tes capteurs depuis Tuya.</div><button class="btn btn-primary" onclick="syncTuyaDevices()">🔄 Synchroniser maintenant</button></div>';
+    } else {
+      html+='<div class="devices-grid">';
+      realDevices.forEach(d=>{
+        const z=zones.find(x=>x.id===d.zoneId);
+        const r=d.lastReadings||{};
+        const readingKeys=['humidity','temperature','ph','light','battery'].filter(k=>r[k]);
+        html+='<div class="device-card">';
+        html+='<div class="device-card-head"><span class="device-emoji">📡</span><span class="device-name">'+escapeHtml(d.name)+'</span><span class="device-status-dot '+(d.online?'online':'offline')+'" title="'+(d.online?'En ligne':'Hors ligne')+'"></span></div>';
+        html+='<div class="device-zone">📍 Zone : '+(z?escapeHtml(z.name):'<em>non associé</em>')+'</div>';
+        if(readingKeys.length>0){
+          html+='<div class="device-readings">';
+          readingKeys.forEach(k=>{
+            const data=r[k];const meta=READING_LABELS[k];
+            html+='<div class="device-reading '+(data.status==='ok'?'':data.status)+'"><div class="device-reading-icon">'+meta.icon+'</div><div class="device-reading-val">'+data.val+' <span class="device-reading-unit">'+data.unit+'</span></div><div class="device-reading-lbl">'+meta.lbl+'</div></div>';
+          });
+          html+='</div>';
+        } else {
+          html+='<div style="padding:14px 16px;font-size:12px;color:var(--text-soft);text-align:center">Pas encore de mesures. Clique « Actualiser ».</div>';
+        }
+        html+='<div class="device-meta"><span>📶 Tuya</span><span>'+(d.lastSeen?'MAJ : '+fmtRelative(d.lastSeen):'Non lue')+'</span></div>';
+        html+='<div class="device-actions"><button class="device-action" onclick="refreshRealDevice(\''+d.id+'\')">🔄 Actualiser</button><button class="device-action" onclick="assignRealDeviceZone(\''+d.id+'\')">📍 Zone</button><button class="device-action danger" onclick="removeRealDevice(\''+d.id+'\')">🗑 Retirer</button></div>';
+        html+='</div>';
       });
       html+='</div>';
-      html+='<div class="device-meta"><span>📶 Wi-Fi · Tuya</span><span>Mis à jour à l\'instant</span></div>';
-      html+='<div class="device-actions"><button class="device-action" onclick="refreshDevice(\''+d.id+'\')">🔄 Actualiser</button><button class="device-action" onclick="reassignDevice(\''+d.id+'\')">📍 Zone</button><button class="device-action danger" onclick="removeDemoDevice(\''+d.id+'\')">🗑 Retirer</button></div>';
+    }
+
+    // Footer with disconnect
+    html+='<div style="margin-top:24px;text-align:center"><button class="btn btn-outline" onclick="disconnectTuya()" style="color:var(--danger);border-color:var(--danger-light)">🔌 Déconnecter Tuya</button></div>';
+  } else {
+    // Not connected
+    html+='<div class="devices-banner"><div class="devices-banner-icon">📡</div><div class="devices-banner-content"><div class="devices-banner-title">Connecte ton compte Tuya</div><div class="devices-banner-text">Récupère les vraies mesures de tes sondes connectées directement dans l\'app.</div></div></div>';
+    html+='<div class="tuya-pairing"><h3>🔌 Connecter un compte Tuya</h3><p>Nécessite un compte développeur Tuya IoT (gratuit) avec un projet créé et ton compte SmartLife lié. Toutes les requêtes passent par notre serveur sécurisé — tes clés ne sont jamais exposées.</p><div class="tuya-pairing-buttons"><button class="btn btn-outline" onclick="explainTuyaSetup()">📖 Aide</button><button class="btn btn-primary" onclick="openTuyaModal()">🔌 Connecter mon compte Tuya</button></div></div>';
+
+    // Demo devices section (optional)
+    if(demoDevices.length>0){
+      html+='<h3 style="font-family:Fraunces,serif;font-size:16px;color:var(--soil);margin:24px 0 12px">Sondes de démonstration</h3>';
+      html+='<div class="devices-grid">';
+      demoDevices.forEach(d=>{
+        const z=zones.find(x=>x.id===d.zoneId);
+        const readings=generateDemoReadings(d.readings);
+        html+='<div class="device-card demo">';
+        html+='<div class="device-card-head"><span class="device-emoji">'+d.emoji+'</span><span class="device-name">'+d.name+'</span><span class="device-status-dot online" title="En ligne"></span></div>';
+        html+='<div class="device-zone">📍 Zone : '+(z?z.name:'Aucune')+'</div>';
+        html+='<div class="device-readings">';
+        d.readings.forEach(rk=>{
+          const data=readings[rk];const meta=READING_LABELS[rk];
+          html+='<div class="device-reading '+(data.status==='ok'?'':data.status)+'"><div class="device-reading-icon">'+meta.icon+'</div><div class="device-reading-val">'+data.val+' <span class="device-reading-unit">'+data.unit+'</span></div><div class="device-reading-lbl">'+meta.lbl+'</div></div>';
+        });
+        html+='</div>';
+        html+='<div class="device-meta"><span>📶 Démo</span><span>Mis à jour à l\'instant</span></div>';
+        html+='<div class="device-actions"><button class="device-action" onclick="refreshDevice(\''+d.id+'\')">🔄 Actualiser</button><button class="device-action" onclick="reassignDevice(\''+d.id+'\')">📍 Zone</button><button class="device-action danger" onclick="removeDemoDevice(\''+d.id+'\')">🗑 Retirer</button></div>';
+        html+='</div>';
+      });
       html+='</div>';
-    });
-    html+='</div>';
+    } else {
+      html+='<div style="text-align:center;margin-top:18px"><button class="btn btn-outline" onclick="addDemoDevice()" style="font-size:12px">+ Ajouter une sonde de démonstration</button></div>';
+    }
   }
   c.innerHTML=html;
 }
 
 function explainTuyaSetup(){
-  alert("Branchement Tuya — étapes prévues :\n\n1. Tu crées un compte développeur sur iot.tuya.com (gratuit)\n2. Tu y crées un projet 'Smart Home'\n3. Tu lies ton app SmartLife/Tuya pour autoriser l'accès\n4. Dans MonPotager : tu colles tes Access ID + Access Secret\n5. L'app liste tes sondes et tu les associes à tes zones\n\nQuand ton capteur sera arrivé, je développe le pont avec l'API Cloud Tuya.");
+  alert("Branchement Tuya — étapes :\n\n1. Crée un compte développeur sur iot.tuya.com\n2. Crée un projet 'Smart Home'\n3. Récupère les 3 clés : Access ID, Access Secret, UID\n4. Lie ton compte SmartLife au projet (scan QR code)\n5. Dans cette page : 'Connecter mon compte Tuya' et colle les clés\n\nTes clés sont stockées chiffrées dans Supabase et ne sortent jamais du serveur sécurisé.");
 }
 function addDemoDevice(){
   if(!zones.length){alert('Crée d\'abord une zone pour pouvoir y associer une sonde.');return}
