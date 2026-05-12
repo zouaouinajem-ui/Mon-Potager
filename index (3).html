@@ -605,6 +605,14 @@ nav{background:var(--soil);padding:0 16px;display:flex;align-items:center;positi
 
 .zw-orient-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
 .zw-soil-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.zone-pick-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.zone-pick-row{background:white;border:1.5px solid var(--stone-dark);border-radius:12px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .15s}
+.zone-pick-row:hover{border-color:var(--leaf-light);background:var(--cream)}
+.zone-pick-row.selected{border-color:var(--leaf);background:var(--leaf-pale)}
+.zp-row-icon{font-size:24px;flex-shrink:0;width:34px;text-align:center}
+.zp-row-content{flex:1;min-width:0}
+.zp-row-name{font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:var(--soil)}
+.zp-row-sub{font-size:11px;color:var(--text-soft);margin-top:2px}
 .zw-soil-card{background:white;border:1.5px solid var(--stone-dark);border-radius:12px;padding:10px 12px;cursor:pointer;display:flex;align-items:flex-start;gap:8px;transition:all .15s}
 .zw-soil-card:hover{border-color:var(--leaf-light)}
 .zw-soil-card.selected{border-color:var(--leaf);background:var(--leaf-pale)}
@@ -3803,7 +3811,7 @@ function generateDemoReadings(types){
   return out;
 }
 
-const READING_LABELS={humidity:{icon:'💧',lbl:'Humidité sol'},ph:{icon:'⚗️',lbl:'pH'},temperature:{icon:'🌡️',lbl:'Température'},light:{icon:'☀️',lbl:'Luminosité'},battery:{icon:'🔋',lbl:'Batterie'}};
+const READING_LABELS={humidity:{icon:'💧',lbl:'Humidité sol'},ph:{icon:'⚗️',lbl:'pH'},temperature:{icon:'🌡️',lbl:'Température'},light:{icon:'☀️',lbl:'Luminosité'},battery:{icon:'🔋',lbl:'Batterie'},ec:{icon:'🧪',lbl:'Fertilité'}};
 
 let demoDevices=[];
 let realDevices=[];
@@ -3820,44 +3828,73 @@ function statusFor(reading,value){
   if(reading==='temperature') return v<5||v>35?'bad':v<10||v>30?'warn':'ok';
   if(reading==='light') return v<1000?'warn':'ok';
   if(reading==='battery') return v<15?'bad':v<30?'warn':'ok';
+  if(reading==='ec') return v<0.5?'warn':v>6?'warn':'ok'; // mS/cm : <0.5 = sol pauvre, >6 = trop salin
   return '';
 }
 
 // Tuya raw status codes → normalized readings
 // Tuya returns array like [{code:'humidity', value:42}, {code:'temp_current', value:18}, ...]
+// Note : les codes varient ÉNORMÉMENT selon les modèles. On élargit au maximum.
 function normalizeTuyaStatus(rawStatus){
   if(!Array.isArray(rawStatus)) return {};
+  console.log('[Tuya] Raw status:',rawStatus);
   const out={};
+  const unknown=[];
   for(const item of rawStatus){
-    const code=(item.code||'').toLowerCase();
+    const codeRaw=item.code||'';
+    const code=codeRaw.toLowerCase();
     let val=item.value;
-    // Humidity codes
-    if(code==='humidity'||code==='humidity_value'||code==='soil_humidity'||code==='humidity_outdoor'){
-      out.humidity={val:typeof val==='number'?val:Number(val),unit:'%'};
+    // === HUMIDITY / MOISTURE ===
+    if(code==='moisture'||code==='humidity'||/humid|moisture|hum_value|hum_current|water_content|soil_moisture/.test(code)){
+      let v=Number(val);
+      if(v>100&&v<=1000) v=v/10;
+      if(v>1000) v=v/10;
+      out.humidity={val:Math.round(v),unit:'%'};
     }
-    // Temperature codes — Tuya often returns temp×10 (so 235 = 23.5°C)
-    else if(code==='temp_current'||code==='temperature'||code==='temp_value'||code==='va_temperature'){
+    // === TEMPERATURE ===
+    else if(code==='temperature'||code==='temp_current'||/temp|temperature|va_temperature|cur_temp/.test(code)){
       let v=Number(val);
       if(v>80||v<-30) v=v/10;
       out.temperature={val:Math.round(v*10)/10,unit:'°C'};
     }
-    // pH
-    else if(code==='ph'||code==='ph_value'||code==='soil_ph'){
+    // === PH ===
+    else if(code==='ph'||code==='ph_value'||/^ph|_ph$|ph_value|soil_ph|acidity/.test(code)){
       let v=Number(val);
-      if(v>14) v=v/100; // some sensors send ph×100
+      if(v>14) v=v/10;
+      if(v>14) v=v/10;
       out.ph={val:Math.round(v*10)/10,unit:'pH'};
     }
-    // Light
-    else if(code==='bright_value'||code==='illuminance_value'||code==='light_intensity'){
+    // === LIGHT / ILLUMINANCE ===
+    else if(/bright|illuminance|light_intensity|light_value|lux/.test(code)){
       out.light={val:Number(val),unit:'lux'};
     }
-    // Battery
-    else if(code==='battery_percentage'||code==='battery_state'||code==='battery'){
+    // === BATTERY ===
+    else if(/battery|electricity|power_level/.test(code)){
       let v=Number(val);
-      if(typeof v==='number') out.battery={val:v,unit:'%'};
+      if(typeof val==='string'){
+        if(val==='low') v=15;
+        else if(val==='middle') v=50;
+        else if(val==='high') v=85;
+        else v=Number(val);
+      }
+      if(!isNaN(v)) out.battery={val:v,unit:'%'};
+    }
+    // === EC / CONDUCTIVITY (fertilité du sol) ===
+    else if(code==='ec'||/^ec|conductivity|salinity/.test(code)){
+      let v=Number(val);
+      // Tuya envoie en ms/cm × 1 ou × 100 selon les modèles
+      // Standard agro : 0-3 ms/cm = peu fertile, 3-6 = bien, >6 = trop salé
+      if(v>10000) v=v/1000;
+      else if(v>100) v=v/100;
+      out.ec={val:Math.round(v*100)/100,unit:'mS/cm'};
+    }
+    else {
+      unknown.push({code:codeRaw,value:val});
     }
   }
-  // Apply status
+  if(unknown.length>0){
+    console.warn('[Tuya] Unknown codes (please report):',unknown);
+  }
   Object.keys(out).forEach(k=>{out[k].status=statusFor(k,out[k].val)});
   return out;
 }
@@ -4072,16 +4109,49 @@ async function refreshRealDevice(deviceId,silent=false){
 
 async function assignRealDeviceZone(deviceId){
   const d=realDevices.find(x=>x.id===deviceId);if(!d)return;
-  if(!zones.length){alert('Crée d\'abord une zone');return}
-  const choices=zones.map((z,i)=>(i+1)+'. '+z.name);
-  choices.unshift('0. Aucune zone');
-  const choice=prompt('Associer le capteur à :\n'+choices.join('\n'),'1');
-  const idx=parseInt(choice)-1;
-  if(isNaN(idx))return;
-  const zoneId=idx===-1?null:(zones[idx]?zones[idx].id:null);
+  if(!zones.length){alert('Crée d\'abord une zone dans Mon Jardin');return}
+  // Open zone picker modal
+  showZonePickerModal(d);
+}
+
+let currentZonePickDevice=null;
+function showZonePickerModal(device){
+  currentZonePickDevice=device;
+  let html='<div class="modal-overlay open" id="zonepick-modal" onclick="if(event.target===this)closeZonePicker()">';
+  html+='<div class="modal"><div class="modal-head"><div class="modal-emoji">📍</div><div class="modal-title-wrap"><div class="modal-title">Associer à une zone</div><div class="modal-sub">'+escapeHtml(device.name)+'</div></div><button class="modal-close" onclick="closeZonePicker()">✕</button></div>';
+  html+='<div class="modal-body">';
+  html+='<div class="zw-section-label">Choisir la zone</div>';
+  html+='<div class="zone-pick-list">';
+  // Option "no zone"
+  const noZoneSelected=!device.zoneId?'selected':'';
+  html+='<div class="zone-pick-row '+noZoneSelected+'" onclick="confirmZonePick(null)"><div class="zp-row-icon">⭘</div><div class="zp-row-content"><div class="zp-row-name">Aucune zone</div><div class="zp-row-sub">Capteur non associé</div></div></div>';
+  // List of zones
+  zones.forEach(z=>{
+    const sel=device.zoneId===z.id?'selected':'';
+    const ic=z.type==='balcon'?'🪴':'🏡';
+    html+='<div class="zone-pick-row '+sel+'" onclick="confirmZonePick(\''+z.id+'\')"><div class="zp-row-icon">'+ic+'</div><div class="zp-row-content"><div class="zp-row-name">'+escapeHtml(z.name)+'</div><div class="zp-row-sub">'+z.w+'×'+z.h+'m · '+(SHADE_LABELS[z.shade]||z.shade)+'</div></div></div>';
+  });
+  html+='</div>';
+  html+='<div class="zw-actions"><button class="btn btn-outline" onclick="closeZonePicker()" style="width:100%">Fermer</button></div>';
+  html+='</div></div></div>';
+  // Inject into DOM
+  let existing=document.getElementById('zonepick-modal');
+  if(existing) existing.remove();
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+function closeZonePicker(){
+  const m=document.getElementById('zonepick-modal');
+  if(m) m.remove();
+  currentZonePickDevice=null;
+}
+async function confirmZonePick(zoneId){
+  if(!currentZonePickDevice) return;
+  const d=currentZonePickDevice;
   try{
-    await sb.from('devices').update({zone_id:zoneId}).eq('id',d.id);
+    const {error}=await sb.from('devices').update({zone_id:zoneId}).eq('id',d.id);
+    if(error) throw error;
     d.zoneId=zoneId;
+    closeZonePicker();
     renderDevices();
   }catch(e){alert('Erreur : '+e.message)}
 }
@@ -4125,7 +4195,7 @@ async function renderDevices(){
       realDevices.forEach(d=>{
         const z=zones.find(x=>x.id===d.zoneId);
         const r=d.lastReadings||{};
-        const readingKeys=['humidity','temperature','ph','light','battery'].filter(k=>r[k]);
+        const readingKeys=['humidity','temperature','ph','light','ec','battery'].filter(k=>r[k]);
         html+='<div class="device-card">';
         html+='<div class="device-card-head"><span class="device-emoji">📡</span><span class="device-name">'+escapeHtml(d.name)+'</span><span class="device-status-dot '+(d.online?'online':'offline')+'" title="'+(d.online?'En ligne':'Hors ligne')+'"></span></div>';
         html+='<div class="device-zone">📍 Zone : '+(z?escapeHtml(z.name):'<em>non associé</em>')+'</div>';
