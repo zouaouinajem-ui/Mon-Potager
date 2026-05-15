@@ -605,6 +605,14 @@ nav{background:var(--soil);padding:0 16px;display:flex;align-items:center;positi
 
 .zw-orient-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
 .zw-soil-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.zone-pick-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.zone-pick-row{background:white;border:1.5px solid var(--stone-dark);border-radius:12px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .15s}
+.zone-pick-row:hover{border-color:var(--leaf-light);background:var(--cream)}
+.zone-pick-row.selected{border-color:var(--leaf);background:var(--leaf-pale)}
+.zp-row-icon{font-size:24px;flex-shrink:0;width:34px;text-align:center}
+.zp-row-content{flex:1;min-width:0}
+.zp-row-name{font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:var(--soil)}
+.zp-row-sub{font-size:11px;color:var(--text-soft);margin-top:2px}
 .zw-soil-card{background:white;border:1.5px solid var(--stone-dark);border-radius:12px;padding:10px 12px;cursor:pointer;display:flex;align-items:flex-start;gap:8px;transition:all .15s}
 .zw-soil-card:hover{border-color:var(--leaf-light)}
 .zw-soil-card.selected{border-color:var(--leaf);background:var(--leaf-pale)}
@@ -1934,7 +1942,147 @@ const PLANTS = [
   {id:'souci',emoji:'🌼',name:'Souci',latin:'Calendula officinalis',cat:'fleurs',species:'souci',spacing:25,sun:'plein-soleil',semis:[3,4,5,9],plant:null},
   {id:'tournesol',emoji:'🌻',name:'Tournesol',latin:'Helianthus annuus',cat:'fleurs',species:'tournesol',spacing:50,sun:'plein-soleil',semis:[4,5],plant:null},
   {id:'cosmos',emoji:'🌸',name:'Cosmos',latin:'Cosmos bipinnatus',cat:'fleurs',species:'cosmos',spacing:40,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
-  {id:'lavande',emoji:'💜',name:'Lavande',latin:'Lavandula angustifolia',cat:'fleurs',species:'lavande',spacing:60,sun:'plein-soleil',semis:null,plant:[3,4,9,10]}
+  {id:'lavande',emoji:'💜',name:'Lavande',latin:'Lavandula angustifolia',cat:'fleurs',species:'lavande',spacing:60,sun:'plein-soleil',semis:null,plant:[3,4,9,10]},
+
+  // === TOMATES KOKOPELLI & ANCIENNES ===
+  {id:'tomate-rose-berne',emoji:'🍅',name:'Tomate Rose de Berne',latin:'Solanum lycopersicum',cat:'legumes-fruits',species:'tomate',spacing:60,sun:'plein-soleil',semis:[3,4],plant:[5,6]},
+  {id:'tomate-ananas',emoji:'🍅',name:'Tomate Ananas (Kokopelli)',latin:'Solanum lycopersicum',cat:'legumes-fruits',species:'tomate',spacing:70,sun:'plein-soleil',semis:[3,4],plant:[5,6]},
+  {id:'tomate-cornue-andes',emoji:'🍅',name:'Tomate Cornue des Andes',latin:'Solanum lycopersicum',cat:'legumes-fruits',species:'tomate',spacing:60,sun:'plein-soleil',semis:[3,4],plant:[5,6]},
+  {id:'tomate-noire-russe',emoji:'🍅',name:'Tomate Noire de Russie',latin:'Solanum lycopersicum',cat:'legumes-fruits',species:'tomate',spacing:60,sun:'plein-soleil',semis:[3,4],plant:[5,6]},
+  {id:'tomate-orange-cherokee',emoji:'🍅',name:'Tomate Cherokee Orange (Kokopelli)',latin:'Solanum lycopersicum',cat:'legumes-fruits',species:'tomate',spacing:70,sun:'plein-soleil',semis:[3,4],plant:[5,6]},
+  {id:'tomate-noire-prince',emoji:'🍅',name:'Tomate Noire du Prince',latin:'Solanum lycopersicum',cat:'legumes-fruits',species:'tomate',spacing:60,sun:'plein-soleil',semis:[3,4],plant:[5,6]},
+  {id:'tomate-andine-cornue',emoji:'🍅',name:'Tomate Andine Cornue',latin:'Solanum lycopersicum',cat:'legumes-fruits',species:'tomate',spacing:60,sun:'plein-soleil',semis:[3,4],plant:[5,6]},
+  {id:'tomate-poire-jaune',emoji:'🍅',name:'Tomate Poire jaune',latin:'Solanum lycopersicum',cat:'legumes-fruits',species:'tomate',spacing:50,sun:'plein-soleil',semis:[3,4],plant:[5,6]},
+  {id:'tomate-tigerella',emoji:'🍅',name:'Tomate Tigerella (Kokopelli)',latin:'Solanum lycopersicum',cat:'legumes-fruits',species:'tomate',spacing:50,sun:'plein-soleil',semis:[3,4],plant:[5,6]},
+  {id:'tomate-purple-russian',emoji:'🍅',name:'Tomate Purple Russian',latin:'Solanum lycopersicum',cat:'legumes-fruits',species:'tomate',spacing:50,sun:'plein-soleil',semis:[3,4],plant:[5,6]},
+
+  // === HARICOTS (variétés étendues) ===
+  {id:'haricot-vert-nain',emoji:'🫛',name:'Haricot vert nain (Contender)',latin:'Phaseolus vulgaris',cat:'legumes-fruits',species:'haricot',spacing:15,sun:'plein-soleil',semis:[4,5,6,7],plant:null},
+  {id:'haricot-rouge-rame',emoji:'🫘',name:'Haricot rouge à rames',latin:'Phaseolus vulgaris',cat:'legumes-fruits',species:'haricot',spacing:20,sun:'plein-soleil',semis:[5,6,7],plant:null},
+  {id:'haricot-coco-blanc',emoji:'🫘',name:'Haricot Coco blanc',latin:'Phaseolus vulgaris',cat:'legumes-fruits',species:'haricot',spacing:15,sun:'plein-soleil',semis:[5,6,7],plant:null},
+  {id:'haricot-beurre',emoji:'🟡',name:'Haricot beurre',latin:'Phaseolus vulgaris',cat:'legumes-fruits',species:'haricot',spacing:15,sun:'plein-soleil',semis:[4,5,6,7],plant:null},
+  {id:'haricot-mange-tout',emoji:'🫛',name:'Haricot mangetout',latin:'Phaseolus vulgaris',cat:'legumes-fruits',species:'haricot',spacing:15,sun:'plein-soleil',semis:[4,5,6,7],plant:null},
+  {id:'haricot-azuki',emoji:'🫘',name:'Haricot Azuki (Kokopelli)',latin:'Vigna angularis',cat:'legumes-fruits',species:'haricot',spacing:20,sun:'plein-soleil',semis:[5,6],plant:null},
+  {id:'haricot-tarbais',emoji:'🫘',name:'Haricot Tarbais',latin:'Phaseolus vulgaris',cat:'legumes-fruits',species:'haricot',spacing:25,sun:'plein-soleil',semis:[5,6],plant:null},
+  {id:'haricot-soissons',emoji:'🫘',name:'Haricot de Soissons',latin:'Phaseolus coccineus',cat:'legumes-fruits',species:'haricot',spacing:25,sun:'plein-soleil',semis:[5,6],plant:null},
+
+  // === POIS (variétés étendues) ===
+  {id:'pois-mangetout-corne',emoji:'🫛',name:'Pois mangetout Corne de bélier',latin:'Pisum sativum',cat:'legumes-fruits',species:'pois',spacing:5,sun:'plein-soleil',semis:[2,3,4,9,10],plant:null},
+  {id:'pois-nain-bambino',emoji:'🫛',name:'Pois nain Bambino',latin:'Pisum sativum',cat:'legumes-fruits',species:'pois',spacing:5,sun:'plein-soleil',semis:[2,3,4],plant:null},
+  {id:'pois-rame-roi-conserves',emoji:'🫛',name:'Pois à rames Roi des conserves',latin:'Pisum sativum',cat:'legumes-fruits',species:'pois',spacing:8,sun:'plein-soleil',semis:[2,3,4],plant:null},
+  {id:'pois-merveille-kelvedon',emoji:'🫛',name:'Pois Merveille de Kelvedon',latin:'Pisum sativum',cat:'legumes-fruits',species:'pois',spacing:5,sun:'plein-soleil',semis:[2,3,4],plant:null},
+  {id:'pois-chiche',emoji:'🫛',name:'Pois chiche',latin:'Cicer arietinum',cat:'legumes-fruits',species:'pois',spacing:10,sun:'plein-soleil',semis:[3,4,5],plant:null},
+  {id:'pois-asperge',emoji:'🫛',name:'Pois asperge (Kokopelli)',latin:'Lotus tetragonolobus',cat:'legumes-fruits',species:'pois',spacing:10,sun:'plein-soleil',semis:[4,5],plant:null},
+
+  // === MELONS & PASTÈQUES ===
+  {id:'melon-charentais',emoji:'🍈',name:'Melon charentais',latin:'Cucumis melo',cat:'legumes-fruits',species:'melon',spacing:100,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
+  {id:'melon-canari',emoji:'🍈',name:'Melon canari jaune',latin:'Cucumis melo',cat:'legumes-fruits',species:'melon',spacing:100,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
+  {id:'melon-petit-gris-rennes',emoji:'🍈',name:'Melon Petit Gris de Rennes',latin:'Cucumis melo',cat:'legumes-fruits',species:'melon',spacing:100,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
+  {id:'melon-vert-noy',emoji:'🍈',name:'Melon Vert Olive (Kokopelli)',latin:'Cucumis melo',cat:'legumes-fruits',species:'melon',spacing:100,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
+  {id:'pasteque-sugar-baby',emoji:'🍉',name:'Pastèque Sugar Baby',latin:'Citrullus lanatus',cat:'legumes-fruits',species:'pasteque',spacing:120,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
+  {id:'pasteque-crimson',emoji:'🍉',name:'Pastèque Crimson Sweet',latin:'Citrullus lanatus',cat:'legumes-fruits',species:'pasteque',spacing:120,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
+  {id:'pasteque-moon-stars',emoji:'🍉',name:'Pastèque Moon & Stars (Kokopelli)',latin:'Citrullus lanatus',cat:'legumes-fruits',species:'pasteque',spacing:120,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
+  {id:'pasteque-jaune',emoji:'🍉',name:'Pastèque jaune',latin:'Citrullus lanatus',cat:'legumes-fruits',species:'pasteque',spacing:120,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
+
+  // === COURGES (variétés étendues) ===
+  {id:'courge-spaghetti',emoji:'🎃',name:'Courge spaghetti',latin:'Cucurbita pepo',cat:'legumes-fruits',species:'potiron',spacing:120,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
+  {id:'courge-musquee-provence',emoji:'🎃',name:'Courge muscade de Provence',latin:'Cucurbita moschata',cat:'legumes-fruits',species:'potiron',spacing:150,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
+  {id:'courge-galeux-eysines',emoji:'🎃',name:"Courge Galeuse d'Eysines (Kokopelli)",latin:'Cucurbita maxima',cat:'legumes-fruits',species:'potiron',spacing:150,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
+  {id:'courge-jack-o-lantern',emoji:'🎃',name:"Citrouille Jack O'Lantern",latin:'Cucurbita pepo',cat:'legumes-fruits',species:'potiron',spacing:150,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
+  {id:'courge-sucrine-berry',emoji:'🎃',name:'Courge Sucrine du Berry',latin:'Cucurbita moschata',cat:'legumes-fruits',species:'potiron',spacing:150,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
+
+  // === CONCOMBRES & CORNICHONS ===
+  {id:'concombre-marketmore',emoji:'🥒',name:'Concombre Marketmore',latin:'Cucumis sativus',cat:'legumes-fruits',species:'concombre',spacing:60,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
+  {id:'concombre-beth-alpha',emoji:'🥒',name:'Concombre Beth Alpha',latin:'Cucumis sativus',cat:'legumes-fruits',species:'concombre',spacing:60,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
+  {id:'concombre-citron',emoji:'🥒',name:'Concombre citron (Kokopelli)',latin:'Cucumis sativus',cat:'legumes-fruits',species:'concombre',spacing:60,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
+  {id:'cornichon-vert-petit-paris',emoji:'🥒',name:'Cornichon Vert petit de Paris',latin:'Cucumis sativus',cat:'legumes-fruits',species:'concombre',spacing:50,sun:'plein-soleil',semis:[4,5],plant:[5,6]},
+
+  // === SALADES & FEUILLES (variétés étendues) ===
+  {id:'laitue-batavia',emoji:'🥬',name:'Laitue Batavia',latin:'Lactuca sativa',cat:'feuilles',species:'salade',spacing:30,sun:'mi-ombre',semis:[2,3,4,5,6,7,8],plant:[4,5,6,7,8,9]},
+  {id:'laitue-feuille-chene',emoji:'🥬',name:'Laitue Feuille de chêne',latin:'Lactuca sativa',cat:'feuilles',species:'salade',spacing:30,sun:'mi-ombre',semis:[3,4,5,6,7,8],plant:[4,5,6,7,8]},
+  {id:'laitue-romaine',emoji:'🥬',name:'Laitue Romaine',latin:'Lactuca sativa',cat:'feuilles',species:'salade',spacing:30,sun:'mi-ombre',semis:[3,4,5,6,7,8],plant:[4,5,6,7,8]},
+  {id:'laitue-lollo-rossa',emoji:'🥬',name:'Laitue Lollo Rossa',latin:'Lactuca sativa',cat:'feuilles',species:'salade',spacing:25,sun:'mi-ombre',semis:[3,4,5,6,7,8],plant:[4,5,6,7,8]},
+  {id:'mache',emoji:'🥬',name:'Mâche',latin:'Valerianella locusta',cat:'feuilles',species:'salade',spacing:10,sun:'mi-ombre',semis:[8,9,10],plant:null},
+  {id:'chicoree-frisee',emoji:'🥬',name:'Chicorée frisée',latin:'Cichorium endivia',cat:'feuilles',species:'salade',spacing:30,sun:'mi-ombre',semis:[6,7,8],plant:[7,8,9]},
+  {id:'kale-frise',emoji:'🥬',name:'Kale frisé',latin:'Brassica oleracea',cat:'feuilles',species:'chou',spacing:50,sun:'plein-soleil',semis:[3,4,5,6],plant:[5,6,7]},
+  {id:'kale-nero',emoji:'🥬',name:'Kale Nero di Toscana',latin:'Brassica oleracea',cat:'feuilles',species:'chou',spacing:50,sun:'plein-soleil',semis:[3,4,5,6],plant:[5,6,7]},
+  {id:'epinard-monstrueux',emoji:'🥬',name:'Épinard Monstrueux de Viroflay',latin:'Spinacia oleracea',cat:'feuilles',species:'epinard',spacing:25,sun:'mi-ombre',semis:[3,4,8,9],plant:null},
+  {id:'epinard-fraise',emoji:'🥬',name:'Épinard-fraise (Kokopelli)',latin:'Blitum capitatum',cat:'feuilles',species:'epinard',spacing:30,sun:'mi-ombre',semis:[3,4,5],plant:null},
+  {id:'blette-poiree',emoji:'🥬',name:'Blette Poirée à carde rouge',latin:'Beta vulgaris',cat:'feuilles',species:'blette',spacing:40,sun:'mi-ombre',semis:[3,4,5,6],plant:[5,6]},
+  {id:'cresson-alenois',emoji:'🥬',name:'Cresson alénois',latin:'Lepidium sativum',cat:'feuilles',species:'roquette',spacing:5,sun:'mi-ombre',semis:[3,4,5,6,7,8,9],plant:null},
+
+  // === RACINES (variétés étendues) ===
+  {id:'carotte-nantaise',emoji:'🥕',name:'Carotte nantaise',latin:'Daucus carota',cat:'racines',species:'carotte',spacing:5,sun:'plein-soleil',semis:[3,4,5,6,7],plant:null},
+  {id:'carotte-jaune-doubs',emoji:'🥕',name:'Carotte jaune du Doubs',latin:'Daucus carota',cat:'racines',species:'carotte',spacing:5,sun:'plein-soleil',semis:[3,4,5,6],plant:null},
+  {id:'carotte-violette',emoji:'🥕',name:'Carotte violette',latin:'Daucus carota',cat:'racines',species:'carotte',spacing:5,sun:'plein-soleil',semis:[3,4,5,6],plant:null},
+  {id:'carotte-marche-paris',emoji:'🥕',name:'Carotte Marché de Paris',latin:'Daucus carota',cat:'racines',species:'carotte',spacing:5,sun:'plein-soleil',semis:[3,4,5,6],plant:null},
+  {id:'radis-18-jours',emoji:'❤️',name:'Radis 18 jours',latin:'Raphanus sativus',cat:'racines',species:'radis',spacing:3,sun:'mi-ombre',semis:[3,4,5,6,7,8,9],plant:null},
+  {id:'radis-noir-hiver',emoji:'⚫',name:"Radis noir d'hiver",latin:'Raphanus sativus',cat:'racines',species:'radis',spacing:8,sun:'plein-soleil',semis:[7,8,9],plant:null},
+  {id:'radis-rose-paques',emoji:'❤️',name:'Radis Rose de Pâques',latin:'Raphanus sativus',cat:'racines',species:'radis',spacing:3,sun:'mi-ombre',semis:[3,4,5,6,7,8,9],plant:null},
+  {id:'betterave-rouge',emoji:'🟣',name:'Betterave rouge',latin:'Beta vulgaris',cat:'racines',species:'betterave',spacing:15,sun:'plein-soleil',semis:[4,5,6],plant:null},
+  {id:'betterave-jaune',emoji:'🟡',name:'Betterave jaune (Kokopelli)',latin:'Beta vulgaris',cat:'racines',species:'betterave',spacing:15,sun:'plein-soleil',semis:[4,5,6],plant:null},
+  {id:'betterave-chioggia',emoji:'🟣',name:'Betterave Chioggia',latin:'Beta vulgaris',cat:'racines',species:'betterave',spacing:15,sun:'plein-soleil',semis:[4,5,6],plant:null},
+  {id:'panais-demi-long',emoji:'🥕',name:'Panais demi-long',latin:'Pastinaca sativa',cat:'racines',species:'panais',spacing:15,sun:'plein-soleil',semis:[3,4,5],plant:null},
+  {id:'navet-rond-rouge',emoji:'⚪',name:'Navet rond rouge',latin:'Brassica rapa',cat:'racines',species:'navet',spacing:10,sun:'plein-soleil',semis:[3,4,5,8,9],plant:null},
+  {id:'navet-boule-or',emoji:'🟡',name:"Navet Boule d'or",latin:'Brassica rapa',cat:'racines',species:'navet',spacing:10,sun:'plein-soleil',semis:[3,4,5,8,9],plant:null},
+  {id:'topinambour',emoji:'🥔',name:'Topinambour',latin:'Helianthus tuberosus',cat:'racines',species:'pdt',spacing:40,sun:'plein-soleil',semis:null,plant:[2,3,4]},
+  {id:'patate-douce',emoji:'🍠',name:'Patate douce',latin:'Ipomoea batatas',cat:'racines',species:'pdt',spacing:50,sun:'plein-soleil',semis:null,plant:[5,6]},
+
+  // === ALLIUMS ===
+  {id:'oignon-rose-roscoff',emoji:'🧅',name:'Oignon rosé de Roscoff',latin:'Allium cepa',cat:'racines',species:'oignon',spacing:15,sun:'plein-soleil',semis:[2,3],plant:[3,4]},
+  {id:'oignon-rouge-florence',emoji:'🧅',name:'Oignon rouge de Florence',latin:'Allium cepa',cat:'racines',species:'oignon',spacing:15,sun:'plein-soleil',semis:[2,3],plant:[3,4]},
+  {id:'echalote-grise',emoji:'🧅',name:'Échalote grise',latin:'Allium oschaninii',cat:'racines',species:'oignon',spacing:15,sun:'plein-soleil',semis:null,plant:[10,11,2,3]},
+  {id:'echalote-rose',emoji:'🧅',name:'Échalote rose',latin:'Allium cepa',cat:'racines',species:'oignon',spacing:15,sun:'plein-soleil',semis:null,plant:[10,11,2,3]},
+  {id:'ail-rose-lautrec',emoji:'🧄',name:"Ail rose de Lautrec",latin:'Allium sativum',cat:'racines',species:'ail',spacing:10,sun:'plein-soleil',semis:null,plant:[2,3]},
+  {id:'ail-violet-cadours',emoji:'🧄',name:"Ail violet de Cadours",latin:'Allium sativum',cat:'racines',species:'ail',spacing:10,sun:'plein-soleil',semis:null,plant:[10,11]},
+  {id:'poireau-bleu-solaise',emoji:'🌿',name:'Poireau Bleu de Solaise',latin:'Allium porrum',cat:'racines',species:'poireau',spacing:15,sun:'plein-soleil',semis:[2,3,4],plant:[5,6,7]},
+  {id:'poireau-monstrueux-carentan',emoji:'🌿',name:'Poireau Monstrueux de Carentan',latin:'Allium porrum',cat:'racines',species:'poireau',spacing:20,sun:'plein-soleil',semis:[2,3,4],plant:[5,6,7]},
+
+  // === CHOUX ===
+  {id:'chou-pomme',emoji:'🥬',name:'Chou pommé blanc',latin:'Brassica oleracea',cat:'feuilles',species:'chou',spacing:50,sun:'plein-soleil',semis:[2,3,4],plant:[5,6,7]},
+  {id:'chou-rouge',emoji:'🥬',name:'Chou rouge',latin:'Brassica oleracea',cat:'feuilles',species:'chou',spacing:50,sun:'plein-soleil',semis:[3,4,5],plant:[5,6,7]},
+  {id:'chou-frise-milan',emoji:'🥬',name:'Chou frisé de Milan',latin:'Brassica oleracea',cat:'feuilles',species:'chou',spacing:50,sun:'plein-soleil',semis:[3,4,5],plant:[5,6,7]},
+  {id:'chou-bruxelles',emoji:'🥬',name:'Chou de Bruxelles',latin:'Brassica oleracea',cat:'feuilles',species:'chou',spacing:60,sun:'plein-soleil',semis:[3,4],plant:[5,6]},
+  {id:'chou-fleur',emoji:'🥦',name:'Chou-fleur',latin:'Brassica oleracea',cat:'feuilles',species:'chou',spacing:60,sun:'plein-soleil',semis:[2,3,4],plant:[5,6,7]},
+  {id:'brocoli',emoji:'🥦',name:'Brocoli',latin:'Brassica oleracea',cat:'feuilles',species:'chou',spacing:50,sun:'plein-soleil',semis:[3,4,5],plant:[5,6,7]},
+  {id:'chou-romanesco',emoji:'🥦',name:'Chou Romanesco',latin:'Brassica oleracea',cat:'feuilles',species:'chou',spacing:60,sun:'plein-soleil',semis:[4,5],plant:[6,7]},
+  {id:'chou-pe-tsai',emoji:'🥬',name:'Chou chinois Pe-tsaï',latin:'Brassica rapa',cat:'feuilles',species:'chou',spacing:30,sun:'mi-ombre',semis:[7,8],plant:null},
+
+  // === FÈVES & LÉGUMINEUSES ===
+  {id:'feve-aguadulce',emoji:'🫘',name:'Fève Aguadulce',latin:'Vicia faba',cat:'legumes-fruits',species:'feve',spacing:20,sun:'plein-soleil',semis:[2,3,10,11],plant:null},
+  {id:'feve-windsor',emoji:'🫘',name:'Fève Windsor',latin:'Vicia faba',cat:'legumes-fruits',species:'feve',spacing:20,sun:'plein-soleil',semis:[2,3,10,11],plant:null},
+  {id:'lentille-verte',emoji:'🟢',name:'Lentille verte',latin:'Lens culinaris',cat:'legumes-fruits',species:'pois',spacing:5,sun:'plein-soleil',semis:[3,4],plant:null},
+
+  // === FRUITIERS PETITS FRUITS ===
+  {id:'fraise-mara-bois',emoji:'🍓',name:'Fraise Mara des bois',latin:'Fragaria × ananassa',cat:'fruits',species:'fraise',spacing:30,sun:'mi-ombre',semis:null,plant:[3,4,8,9,10]},
+  {id:'fraise-gariguette',emoji:'🍓',name:'Fraise Gariguette',latin:'Fragaria × ananassa',cat:'fruits',species:'fraise',spacing:30,sun:'mi-ombre',semis:null,plant:[3,4,8,9,10]},
+  {id:'fraise-charlotte',emoji:'🍓',name:'Fraise Charlotte',latin:'Fragaria × ananassa',cat:'fruits',species:'fraise',spacing:30,sun:'mi-ombre',semis:null,plant:[3,4,8,9,10]},
+  {id:'fraise-blanche',emoji:'🤍',name:'Fraise blanche (Kokopelli)',latin:'Fragaria × ananassa',cat:'fruits',species:'fraise',spacing:30,sun:'mi-ombre',semis:null,plant:[3,4,8,9]},
+  {id:'framboise-meeker',emoji:'🍇',name:'Framboise Meeker',latin:'Rubus idaeus',cat:'fruits',species:'framboise',spacing:60,sun:'plein-soleil',semis:null,plant:[10,11,2,3]},
+  {id:'framboise-zefa',emoji:'🍇',name:'Framboise Zefa Herbsternte',latin:'Rubus idaeus',cat:'fruits',species:'framboise',spacing:60,sun:'plein-soleil',semis:null,plant:[10,11,2,3]},
+  {id:'cassis-noir-bourgogne',emoji:'🫐',name:'Cassis Noir de Bourgogne',latin:'Ribes nigrum',cat:'fruits',species:'cassis',spacing:120,sun:'plein-soleil',semis:null,plant:[10,11,2,3]},
+  {id:'groseille-rouge',emoji:'🔴',name:'Groseille rouge',latin:'Ribes rubrum',cat:'fruits',species:'groseille',spacing:120,sun:'mi-ombre',semis:null,plant:[10,11,2,3]},
+  {id:'groseille-maquereau',emoji:'🟢',name:'Groseille à maquereau',latin:'Ribes uva-crispa',cat:'fruits',species:'groseille',spacing:120,sun:'mi-ombre',semis:null,plant:[10,11,2,3]},
+
+  // === AROMATIQUES ===
+  {id:'persil-plat',emoji:'🌿',name:'Persil plat',latin:'Petroselinum crispum',cat:'aromatiques',species:'persil',spacing:15,sun:'mi-ombre',semis:[3,4,5,6,7],plant:[4,5,6]},
+  {id:'persil-frise',emoji:'🌿',name:'Persil frisé',latin:'Petroselinum crispum',cat:'aromatiques',species:'persil',spacing:15,sun:'mi-ombre',semis:[3,4,5,6,7],plant:[4,5,6]},
+  {id:'basilic-grand-vert',emoji:'🌿',name:'Basilic Grand vert',latin:'Ocimum basilicum',cat:'aromatiques',species:'basilic',spacing:25,sun:'plein-soleil',semis:[3,4,5],plant:[5,6]},
+  {id:'basilic-pourpre',emoji:'🌿',name:'Basilic pourpre',latin:'Ocimum basilicum',cat:'aromatiques',species:'basilic',spacing:25,sun:'plein-soleil',semis:[3,4,5],plant:[5,6]},
+  {id:'basilic-citron',emoji:'🌿',name:'Basilic citron',latin:'Ocimum × citriodorum',cat:'aromatiques',species:'basilic',spacing:25,sun:'plein-soleil',semis:[3,4,5],plant:[5,6]},
+  {id:'basilic-thai',emoji:'🌿',name:'Basilic thaï',latin:'Ocimum basilicum',cat:'aromatiques',species:'basilic',spacing:25,sun:'plein-soleil',semis:[3,4,5],plant:[5,6]},
+  {id:'menthe-marocaine',emoji:'🌿',name:'Menthe marocaine',latin:'Mentha spicata',cat:'aromatiques',species:'menthe',spacing:40,sun:'mi-ombre',semis:null,plant:[3,4,5,9]},
+  {id:'menthe-poivree',emoji:'🌿',name:'Menthe poivrée',latin:'Mentha × piperita',cat:'aromatiques',species:'menthe',spacing:40,sun:'mi-ombre',semis:null,plant:[3,4,5,9]},
+  {id:'menthe-chocolat',emoji:'🌿',name:'Menthe chocolat',latin:'Mentha × piperita',cat:'aromatiques',species:'menthe',spacing:40,sun:'mi-ombre',semis:null,plant:[3,4,5]},
+  {id:'verveine-citron',emoji:'🌿',name:'Verveine citronnelle',latin:'Aloysia citrodora',cat:'aromatiques',species:'menthe',spacing:60,sun:'plein-soleil',semis:null,plant:[5,6]},
+  {id:'melisse',emoji:'🌿',name:'Mélisse officinale',latin:'Melissa officinalis',cat:'aromatiques',species:'menthe',spacing:40,sun:'mi-ombre',semis:[3,4,5],plant:[5,6,9]},
+
+  // === FLEURS COMESTIBLES ===
+  {id:'oeillet-inde-grand',emoji:'🌼',name:"Œillet d'Inde grand",latin:'Tagetes patula',cat:'fleurs',species:'oeillet',spacing:25,sun:'plein-soleil',semis:[3,4,5],plant:[5,6]},
+  {id:'capucine-grande',emoji:'🌺',name:'Capucine grande',latin:'Tropaeolum majus',cat:'fleurs',species:'capucine',spacing:30,sun:'plein-soleil',semis:[3,4,5],plant:[5,6]},
+  {id:'capucine-naine',emoji:'🌺',name:'Capucine naine',latin:'Tropaeolum minus',cat:'fleurs',species:'capucine',spacing:25,sun:'plein-soleil',semis:[3,4,5],plant:[5,6]},
+  {id:'tournesol-geant',emoji:'🌻',name:'Tournesol géant',latin:'Helianthus annuus',cat:'fleurs',species:'tournesol',spacing:60,sun:'plein-soleil',semis:[4,5],plant:null},
+  {id:'tournesol-nain',emoji:'🌻',name:'Tournesol nain',latin:'Helianthus annuus',cat:'fleurs',species:'tournesol',spacing:30,sun:'plein-soleil',semis:[4,5],plant:null}
 ];
 
 const ASSOC_GOOD={
@@ -1945,6 +2093,10 @@ const ASSOC_GOOD={
   fraise:['ciboulette','salade','ail','oignon','bourrache','epinard'],
   salade:['carotte','radis','fraise','ciboulette','tomate','epinard'],
   potiron:['haricot','oeillet','mais','capucine'],
+  melon:['mais','oeillet','capucine','bourrache','radis'],
+  pasteque:['mais','oeillet','capucine','bourrache','radis'],
+  pois:['carotte','radis','navet','concombre','mais'],
+  haricot:['carotte','radis','salade','tomate','courgette','mais','aubergine','oeillet','capucine'],
   haricot:['courgette','carotte','salade','mais','potiron','aubergine'],
   poivron:['basilic','oeillet','carotte','tomate'],
   thym:['chou','aubergine','tomate'],
@@ -2014,7 +2166,14 @@ const INCOMPAT_DISTANCES=[
   {a:'basilic',b:'sauge',dist:0.5,reason:'Besoins en eau opposés'},
   {a:'basilic',b:'romarin',dist:0.5,reason:'Besoins en eau opposés'},
   {a:'mais',b:'tomate',dist:1.5,reason:'Compétition forte pour eau et azote'},
-  {a:'aneth',b:'carotte',dist:1,reason:'Risques d\'hybridation (même famille)'}
+  {a:'aneth',b:'carotte',dist:1,reason:'Risques d\'hybridation (même famille)'},
+  // Cucurbitacées vs Solanacées
+  {a:'melon',b:'pdt',dist:1.5,reason:'Champignons croisés (mildiou)'},
+  {a:'pasteque',b:'pdt',dist:1.5,reason:'Champignons croisés (mildiou)'},
+  {a:'melon',b:'tomate',dist:1,reason:'Concurrence eau et nutriments'},
+  {a:'pasteque',b:'tomate',dist:1,reason:'Concurrence eau et nutriments'},
+  {a:'concombre',b:'melon',dist:1,reason:'Hybridation possible (Cucumis)'},
+  {a:'melon',b:'pasteque',dist:0.8,reason:'Concurrence racinaire (cucurbitacées)'}
 ];
 
 function getIncompatBetween(spA,spB){
@@ -2359,11 +2518,23 @@ function pwAutoPlaceCurrent(z,p,rows,cols){
     if(occupiedCells.has(r+','+c)) return -Infinity;
     if(placed.some(pl=>pl[0]===r&&pl[1]===c)) return -Infinity;
     let score=100;
+    // === Same culture : regrouper (pas étaler) ===
+    // Forbidden if below minimum spacing
     for(const pl of placed){
       const cellDist=Math.max(Math.abs(pl[0]-r),Math.abs(pl[1]-c));
       if(cellDist<minDistSelf) return -Infinity;
-      score+=cellDist*2;
     }
+    // BIG bonus to be close to the existing group's centroid (but at minDistSelf, not closer)
+    if(placed.length>0){
+      let cx=0,cy=0;
+      placed.forEach(pl=>{cx+=pl[0];cy+=pl[1]});
+      cx/=placed.length;cy/=placed.length;
+      const distToCentroid=Math.sqrt(Math.pow(r-cx,2)+Math.pow(c-cy,2));
+      // Optimal: distToCentroid ≈ minDistSelf for the 2nd plant, scales for further plants
+      // We want to MINIMIZE this distance (compact group)
+      score-=distToCentroid*8; // strong penalty for dispersion
+    }
+    // === Cross-species ===
     for(const n of neighborhoodInfo){
       const dCells=Math.sqrt(Math.pow(n.r-r,2)+Math.pow(n.c-c,2));
       const dM=dCells*0.4;
@@ -2374,17 +2545,13 @@ function pwAutoPlaceCurrent(z,p,rows,cols){
         else if(ratio<1) score-=20;
       }
       if(n.isGood){
-        if(dM<=1.5) score+=30-(dM*10);
+        // Companion plants: prefer to be CLOSER (within 1.5 m)
+        if(dM<=1.5) score+=40-(dM*15);
       }
     }
-    if(placed.length>0){
-      let avgDist=0;
-      placed.forEach(pl=>{avgDist+=Math.max(Math.abs(pl[0]-r),Math.abs(pl[1]-c))});
-      avgDist/=placed.length;
-      if(avgDist>10) score-=10;
-    }
+    // Light center bonus
     const centerDist=Math.sqrt(Math.pow(r-rows/2,2)+Math.pow(c-cols/2,2));
-    score+=Math.max(0,5-centerDist);
+    score+=Math.max(0,5-centerDist*0.3);
     return score;
   }
 
@@ -2461,11 +2628,17 @@ async function pwAutoPlaceFull(z,p,rows,cols){
     if(placedAll.some(pl=>pl.r===r&&pl.c===c)) return -Infinity;
     let score=100;
     const minDistSelf=minDistFor[group.key];
+    // Compute centroid of same-species already placed in this group
+    const sameSp=placedAll.filter(pl=>pl.groupKey===group.key);
+    if(sameSp.length>0){
+      let cx=0,cy=0;sameSp.forEach(pl=>{cx+=pl.r;cy+=pl.c});cx/=sameSp.length;cy/=sameSp.length;
+      const distToCentroid=Math.sqrt(Math.pow(r-cx,2)+Math.pow(c-cy,2));
+      score-=distToCentroid*8; // groupage de la même culture
+    }
     for(const pl of placedAll){
       const cellDist=Math.max(Math.abs(pl.r-r),Math.abs(pl.c-c));
       if(pl.species===group.species){
         if(cellDist<minDistSelf) return -Infinity;
-        score+=cellDist; // small bonus for spacing
       } else {
         const rule=getIncompatBetween(group.species,pl.species);
         if(rule){
@@ -2479,7 +2652,7 @@ async function pwAutoPlaceFull(z,p,rows,cols){
         if((ASSOC_GOOD[group.species]||[]).includes(pl.species)){
           const dCells=Math.sqrt(Math.pow(pl.r-r,2)+Math.pow(pl.c-c,2));
           const dM=dCells*0.4;
-          if(dM<=1.5) score+=30-(dM*10);
+          if(dM<=1.5) score+=40-(dM*15);
         }
       }
     }
@@ -3803,7 +3976,7 @@ function generateDemoReadings(types){
   return out;
 }
 
-const READING_LABELS={humidity:{icon:'💧',lbl:'Humidité sol'},ph:{icon:'⚗️',lbl:'pH'},temperature:{icon:'🌡️',lbl:'Température'},light:{icon:'☀️',lbl:'Luminosité'},battery:{icon:'🔋',lbl:'Batterie'}};
+const READING_LABELS={humidity:{icon:'💧',lbl:'Humidité sol'},ph:{icon:'⚗️',lbl:'pH'},temperature:{icon:'🌡️',lbl:'Température'},light:{icon:'☀️',lbl:'Luminosité'},battery:{icon:'🔋',lbl:'Batterie'},ec:{icon:'🧪',lbl:'Fertilité'}};
 
 let demoDevices=[];
 let realDevices=[];
@@ -3820,44 +3993,73 @@ function statusFor(reading,value){
   if(reading==='temperature') return v<5||v>35?'bad':v<10||v>30?'warn':'ok';
   if(reading==='light') return v<1000?'warn':'ok';
   if(reading==='battery') return v<15?'bad':v<30?'warn':'ok';
+  if(reading==='ec') return v<0.5?'warn':v>6?'warn':'ok'; // mS/cm : <0.5 = sol pauvre, >6 = trop salin
   return '';
 }
 
 // Tuya raw status codes → normalized readings
 // Tuya returns array like [{code:'humidity', value:42}, {code:'temp_current', value:18}, ...]
+// Note : les codes varient ÉNORMÉMENT selon les modèles. On élargit au maximum.
 function normalizeTuyaStatus(rawStatus){
   if(!Array.isArray(rawStatus)) return {};
+  console.log('[Tuya] Raw status:',rawStatus);
   const out={};
+  const unknown=[];
   for(const item of rawStatus){
-    const code=(item.code||'').toLowerCase();
+    const codeRaw=item.code||'';
+    const code=codeRaw.toLowerCase();
     let val=item.value;
-    // Humidity codes
-    if(code==='humidity'||code==='humidity_value'||code==='soil_humidity'||code==='humidity_outdoor'){
-      out.humidity={val:typeof val==='number'?val:Number(val),unit:'%'};
+    // === HUMIDITY / MOISTURE ===
+    if(code==='moisture'||code==='humidity'||/humid|moisture|hum_value|hum_current|water_content|soil_moisture/.test(code)){
+      let v=Number(val);
+      if(v>100&&v<=1000) v=v/10;
+      if(v>1000) v=v/10;
+      out.humidity={val:Math.round(v),unit:'%'};
     }
-    // Temperature codes — Tuya often returns temp×10 (so 235 = 23.5°C)
-    else if(code==='temp_current'||code==='temperature'||code==='temp_value'||code==='va_temperature'){
+    // === TEMPERATURE ===
+    else if(code==='temperature'||code==='temp_current'||/temp|temperature|va_temperature|cur_temp/.test(code)){
       let v=Number(val);
       if(v>80||v<-30) v=v/10;
       out.temperature={val:Math.round(v*10)/10,unit:'°C'};
     }
-    // pH
-    else if(code==='ph'||code==='ph_value'||code==='soil_ph'){
+    // === PH ===
+    else if(code==='ph'||code==='ph_value'||/^ph|_ph$|ph_value|soil_ph|acidity/.test(code)){
       let v=Number(val);
-      if(v>14) v=v/100; // some sensors send ph×100
+      if(v>14) v=v/10;
+      if(v>14) v=v/10;
       out.ph={val:Math.round(v*10)/10,unit:'pH'};
     }
-    // Light
-    else if(code==='bright_value'||code==='illuminance_value'||code==='light_intensity'){
+    // === LIGHT / ILLUMINANCE ===
+    else if(/bright|illuminance|light_intensity|light_value|lux/.test(code)){
       out.light={val:Number(val),unit:'lux'};
     }
-    // Battery
-    else if(code==='battery_percentage'||code==='battery_state'||code==='battery'){
+    // === BATTERY ===
+    else if(/battery|electricity|power_level/.test(code)){
       let v=Number(val);
-      if(typeof v==='number') out.battery={val:v,unit:'%'};
+      if(typeof val==='string'){
+        if(val==='low') v=15;
+        else if(val==='middle') v=50;
+        else if(val==='high') v=85;
+        else v=Number(val);
+      }
+      if(!isNaN(v)) out.battery={val:v,unit:'%'};
+    }
+    // === EC / CONDUCTIVITY (fertilité du sol) ===
+    else if(code==='ec'||/^ec|conductivity|salinity/.test(code)){
+      let v=Number(val);
+      // Tuya envoie en ms/cm × 1 ou × 100 selon les modèles
+      // Standard agro : 0-3 ms/cm = peu fertile, 3-6 = bien, >6 = trop salé
+      if(v>10000) v=v/1000;
+      else if(v>100) v=v/100;
+      out.ec={val:Math.round(v*100)/100,unit:'mS/cm'};
+    }
+    else {
+      unknown.push({code:codeRaw,value:val});
     }
   }
-  // Apply status
+  if(unknown.length>0){
+    console.warn('[Tuya] Unknown codes (please report):',unknown);
+  }
   Object.keys(out).forEach(k=>{out[k].status=statusFor(k,out[k].val)});
   return out;
 }
@@ -4072,16 +4274,49 @@ async function refreshRealDevice(deviceId,silent=false){
 
 async function assignRealDeviceZone(deviceId){
   const d=realDevices.find(x=>x.id===deviceId);if(!d)return;
-  if(!zones.length){alert('Crée d\'abord une zone');return}
-  const choices=zones.map((z,i)=>(i+1)+'. '+z.name);
-  choices.unshift('0. Aucune zone');
-  const choice=prompt('Associer le capteur à :\n'+choices.join('\n'),'1');
-  const idx=parseInt(choice)-1;
-  if(isNaN(idx))return;
-  const zoneId=idx===-1?null:(zones[idx]?zones[idx].id:null);
+  if(!zones.length){alert('Crée d\'abord une zone dans Mon Jardin');return}
+  // Open zone picker modal
+  showZonePickerModal(d);
+}
+
+let currentZonePickDevice=null;
+function showZonePickerModal(device){
+  currentZonePickDevice=device;
+  let html='<div class="modal-overlay open" id="zonepick-modal" onclick="if(event.target===this)closeZonePicker()">';
+  html+='<div class="modal"><div class="modal-head"><div class="modal-emoji">📍</div><div class="modal-title-wrap"><div class="modal-title">Associer à une zone</div><div class="modal-sub">'+escapeHtml(device.name)+'</div></div><button class="modal-close" onclick="closeZonePicker()">✕</button></div>';
+  html+='<div class="modal-body">';
+  html+='<div class="zw-section-label">Choisir la zone</div>';
+  html+='<div class="zone-pick-list">';
+  // Option "no zone"
+  const noZoneSelected=!device.zoneId?'selected':'';
+  html+='<div class="zone-pick-row '+noZoneSelected+'" onclick="confirmZonePick(null)"><div class="zp-row-icon">⭘</div><div class="zp-row-content"><div class="zp-row-name">Aucune zone</div><div class="zp-row-sub">Capteur non associé</div></div></div>';
+  // List of zones
+  zones.forEach(z=>{
+    const sel=device.zoneId===z.id?'selected':'';
+    const ic=z.type==='balcon'?'🪴':'🏡';
+    html+='<div class="zone-pick-row '+sel+'" onclick="confirmZonePick(\''+z.id+'\')"><div class="zp-row-icon">'+ic+'</div><div class="zp-row-content"><div class="zp-row-name">'+escapeHtml(z.name)+'</div><div class="zp-row-sub">'+z.w+'×'+z.h+'m · '+(SHADE_LABELS[z.shade]||z.shade)+'</div></div></div>';
+  });
+  html+='</div>';
+  html+='<div class="zw-actions"><button class="btn btn-outline" onclick="closeZonePicker()" style="width:100%">Fermer</button></div>';
+  html+='</div></div></div>';
+  // Inject into DOM
+  let existing=document.getElementById('zonepick-modal');
+  if(existing) existing.remove();
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+function closeZonePicker(){
+  const m=document.getElementById('zonepick-modal');
+  if(m) m.remove();
+  currentZonePickDevice=null;
+}
+async function confirmZonePick(zoneId){
+  if(!currentZonePickDevice) return;
+  const d=currentZonePickDevice;
   try{
-    await sb.from('devices').update({zone_id:zoneId}).eq('id',d.id);
+    const {error}=await sb.from('devices').update({zone_id:zoneId}).eq('id',d.id);
+    if(error) throw error;
     d.zoneId=zoneId;
+    closeZonePicker();
     renderDevices();
   }catch(e){alert('Erreur : '+e.message)}
 }
@@ -4125,7 +4360,7 @@ async function renderDevices(){
       realDevices.forEach(d=>{
         const z=zones.find(x=>x.id===d.zoneId);
         const r=d.lastReadings||{};
-        const readingKeys=['humidity','temperature','ph','light','battery'].filter(k=>r[k]);
+        const readingKeys=['humidity','temperature','ph','light','ec','battery'].filter(k=>r[k]);
         html+='<div class="device-card">';
         html+='<div class="device-card-head"><span class="device-emoji">📡</span><span class="device-name">'+escapeHtml(d.name)+'</span><span class="device-status-dot '+(d.online?'online':'offline')+'" title="'+(d.online?'En ligne':'Hors ligne')+'"></span></div>';
         html+='<div class="device-zone">📍 Zone : '+(z?escapeHtml(z.name):'<em>non associé</em>')+'</div>';
